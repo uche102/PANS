@@ -1,0 +1,372 @@
+/* 4. BRANDING & TEXT */
+.brand-section {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+:root {
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #f8fafc;
+  --border: #e2e8f0;
+  --accent: #0d9488; /* Pharmacy Teal */
+  --accent-bg: rgba(13, 148, 136, 0.1);
+  --accent-border: rgba(13, 148, 136, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* 2. PROFESSIONAL RESET */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff; /* Matches the image background */
+  font-family: var(--sans);
+  overflow-x: hidden;
+}
+.voters-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.voters-table th,
+.voters-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.voters-table th {
+  background-color: #f8fafc;
+  color: var(--text);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+}
+
+.status-badge {
+  background-color: #dcfce7;
+  color: #166534;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg);
+}
+
+.admin-sidebar {
+  width: 260px;
+  background: #0f172a; /* Keep this dark for contrast */
+  color: white;
+  padding: 2rem;
+}
+
+.admin-main {
+  flex: 1;
+  padding: 2rem;
+}
+
+/* Add this to style your Pie Chart container */
+.chart-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.brand-icon {
+  background-color: var(--accent-bg);
+  width: 64px;
+  height: 64px;
+  border-radius: 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+.brand-icon img {
+  background: #0f172a;
+  width: 64px; 
+  height: 64px;
+  border-radius: 3rem;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.brand-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-h);
+  letter-spacing: -0.025em;
+}
+
+.brand-subtitle {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+/* Sidebar Navigation Items */
+.nav-item {
+  width: 100%;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.nav-item.active {
+  background: #1e293b;
+  color: #10b981;
+}
+
+.nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+/* Header & Stats */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-card {
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent);
+}
+
+/* 6. BUTTONS */
+.primary-button {
+  background-color: var(--accent);
+  color: white;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary-button:hover {
+  background-color: #0b7a6f;
+  transform: translateY(-1px);
+}
+
+.primary-button:active {
+  transform: translateY(0);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+/* ADMIN LOGIN SCREEN - DARK THEME */
+.admin-login-screen {
+  background: #0f172a; /* Deep Navy */
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.login-panel {
+  background: #1e293b; /* Lighter Slate */
+  padding: 40px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  border: 1px solid #334155;
+}
+
+.security-header h2 {
+  color: white;
+  margin: 15px 0 5px 0;
+  font-size: 1.5rem;
+}
+
+.security-header p {
+  color: #94a3b8;
+  font-size: 14px;
+  margin-bottom: 30px;
+}
+
+.auth-input-group {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.auth-input-group label {
+  color: #94a3b8;
+  font-size: 11px;
+  display: block;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.input-wrapper {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  transition: border-color 0.2s;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent);
+}
+
+.input-wrapper input {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 12px;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+}
+
+.admin-login-btn {
+  background: var(--accent);
+  color: white;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.admin-login-btn:hover {
+  opacity: 0.9;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 15px;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+}
+/* ADMIN LOGIN THEME */
+.admin-login-screen {
+  background: #0f172a;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-panel {
+  background: #1e293b;
+  padding: 40px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  border: 1px solid #334155;
+}
+
+.auth-input-group {
+  text-align: left;
+  margin-top: 20px;
+}
+
+.input-wrapper {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  margin-top: 8px;
+}
+
+.input-wrapper input {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 12px;
+  width: 100%;
+  outline: none;
+}
+
+.admin-login-btn {
+  background-color: var(--accent);
+  color: white;
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  margin-top: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.footer-note {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}

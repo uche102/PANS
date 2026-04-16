@@ -1,0 +1,669 @@
+/* 1. BRANDING VARIABLES */
+:root {
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #f8fafc;
+  --border: #e2e8f0;
+  --accent: #0d9488; /* Pharmacy Teal */
+  --accent-bg: rgba(13, 148, 136, 0.1);
+  --accent-border: rgba(13, 148, 136, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* 2. PROFESSIONAL RESET */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff; /* Matches the image background */
+  font-family: var(--sans);
+  overflow-x: hidden;
+}
+
+/* 3. LOGIN PAGE LAYOUT */
+.login-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.85
+  ); /* Adjust this to make image lighter/darker */
+  z-index: 1;
+}
+.login-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  /* This puts the Lady Justice in the background */
+  background-image: url("./assets/liberty.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain; /* Keeps the whole image visible */
+}
+
+.login-card {
+  position: relative;
+  z-index: 2; /* Sits above the white overlay */
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid #f1f5f9;
+}
+
+/* 4. BRANDING & TEXT */
+.brand-section {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.brand-icon {
+  background-color: transparent;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+.brand-icon img {
+  width: 64px; /* Adjust based on your design */
+  height: 64px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.brand-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-h);
+  letter-spacing: -0.025em;
+}
+
+.brand-subtitle {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+/* 5. FORMS & INPUTS */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.input-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.text-input,
+.otp-input {
+  width: 100%;
+  padding: 0.875rem;
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+}
+
+.otp-input {
+  text-align: center;
+  letter-spacing: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 900;
+  border-color: var(--accent);
+}
+
+/* 6. BUTTONS */
+.primary-button {
+  background-color: var(--accent);
+  color: white;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary-button:hover {
+  background-color: #0b7a6f;
+  transform: translateY(-1px);
+}
+
+.primary-button:active {
+  transform: translateY(0);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+/* BALLOT PAGE STYLES */
+.ballot-page {
+  min-height: 100vh;
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed; /* Keeps the building still while you scroll through candidates */
+  background-repeat: no-repeat;
+  position: relative;
+  padding-bottom: 50px;
+}
+.ballot-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.3
+  ); /* Light overlay to ensure text readability */
+  z-index: 0;
+}
+.progress-container {
+  width: 100%;
+  height: 4px;
+  background: var(--accent-bg);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.ballot-header,
+.ballot-container {
+  position: relative;
+  z-index: 1;
+}
+.office-section {
+  margin-bottom: 4rem;
+}
+
+.office-title {
+  color: var(--accent); /* Teal color for the category */
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.poll-question {
+  color: var(--text-h); /* Darker color for the actual question */
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  line-height: 1.2;
+}
+
+/* Make the cards look more like poll options */
+.candidate-card {
+  padding: 2rem 1.5rem;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.candidate-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  border: 1px solid var(--border);
+}
+
+.candidate-card.selected {
+  border: 2px solid var(--accent);
+  background: var(--accent-bg);
+  transform: scale(1.02);
+}
+
+.selection-indicator {
+  margin-top: 15px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text);
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.candidate-card.selected .selection-indicator {
+  color: var(--accent);
+  border-top: 1px solid var(--accent-border);
+}
+
+.submit-section {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.finalize-btn {
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.3);
+}
+
+.header-info h1 {
+  font-size: 18px;
+  margin: 0;
+  color: var(--text-h);
+}
+
+.header-info p {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+}
+
+.exit-button {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ballot-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.instruction-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
+  border-left: 5px solid var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.candidate-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s;
+}
+
+.candidate-card:hover {
+  transform: translateY(-5px);
+}
+.candidate-photo {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 1.5rem;
+  border: 3px solid transparent;
+  transition: border-color 0.3s;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.candidate-card.selected .candidate-photo {
+  border-color: var(--accent);
+}
+
+.candidate-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-placeholder {
+  width: 80px;
+  height: 80px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 900;
+  margin: 0 auto 15px;
+}
+
+.candidate-info h3 {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.candidate-info p {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.vote-button {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.vote-button:hover {
+  background: var(--accent);
+  color: white;
+}
+.voter-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--accent-bg);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid var(--accent);
+  gap: 20px;
+}
+
+.hero-text h2 {
+  color: var(--accent);
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+}
+
+.hero-text p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.hero-image-wrapper {
+  max-width: 200px; /* Adjust size as needed */
+  flex-shrink: 0;
+}
+
+.hero-illustration {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.voter-welcome-banner {
+  width: 100%;
+  height: 180px; /* Adjust height as needed */
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 0 30px;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: white; /* Ensures text is readable over the dark overlay */
+}
+
+.banner-text h2 {
+  font-size: 1.8rem;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.banner-text p {
+  font-size: 1rem;
+  max-width: 600px;
+  opacity: 0.9;
+}
+
+@media (max-width: 600px) {
+  .voter-welcome-banner {
+    height: auto;
+    padding: 30px 20px;
+    text-align: center;
+  }
+}
+.success-page {
+  min-height: 100vh;
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-overlay {
+  width: 100%;
+  min-height: 100vh;
+  background: rgba(255, 255, 255, 0.85); /* Tint to match Ballot page */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.success-card {
+  background: white;
+  padding: 40px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  max-width: 450px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.success-icon-wrapper {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.success-title {
+  color: var(--text-h);
+  font-size: 1.75rem;
+  margin-bottom: 10px;
+}
+
+.success-subtitle {
+  color: var(--text);
+  margin-bottom: 30px;
+  opacity: 0.8;
+}
+
+.receipt-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px dashed var(--border);
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.status-pill {
+  color: #10b981;
+  font-weight: bold;
+}
+
+.ref-text {
+  font-family: monospace;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.secondary-button {
+  background: white;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondary-button:hover {
+  background: #f1f5f9;
+}
+
+.security-footer {
+  margin-top: 25px;
+  font-size: 11px;
+  opacity: 0.6;
+  font-style: italic;
+}
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+  background: #f1f5f9;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background: #0f172a;
+  color: white;
+  padding: 2rem;
+}
+
+.admin-main {
+  flex: 1;
+  padding: 2rem;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+}
+
+.chart-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.nav-item {
+  width: 100%;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.nav-item.active {
+  background: #1e293b;
+  color: #10b981;
+}
+
+.footer-note {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}

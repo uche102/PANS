@@ -3,9 +3,11 @@ import { Pool } from "pg";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import { Resend } from "resend";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 
@@ -22,51 +24,8 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   database: "pans_election",
-  password: "password",
+  password: process.env.DB_PASSWORD || "password",
   port: 5432,
-});
-const TERMII_API_KEY = "YOUR_TERMII_KEY";
-const TERMII_SENDER_ID = "PANS_UNIZIK";
-
-app.post("/api/request-otp", async (req, res) => {
-  const { regNo } = req.body;
-
-  try {
-   
-    const student = await pool.query(
-      "SELECT phone_number FROM students WHERE reg_no = $1 AND has_voted = false",
-      [regNo],
-    );
-
-    if (student.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "Voter not found or already voted." });
-    }
-
-    const phoneNumber = student.rows[0].phone_number;
-    const otp = Math.floor(100000 + Math.random() * 700000); // 6-digit OTP
-
-    
-    const response = await fetch("https://api.ng.termii.com/api/sms/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: phoneNumber,
-        from: TERMII_SENDER_ID,
-        sms: `Your PANS UNIZIK Election OTP is: ${otp}. Do not share this with anyone.`,
-        type: "plain",
-        channel: "dnd", // Use DND channel for Nigerian numbers
-        api_key: TERMII_API_KEY,
-      }),
-    });
-
-    
-
-    res.json({ success: true, message: "OTP sent successfully." });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to process request." });
-  }
 });
 
 // --- SECURITY SETTINGS ---
@@ -74,8 +33,14 @@ const ADMIN_USER = "pans_admin";
 const ADMIN_PASS = "PANS2026";
 
 const protectAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization || "";
-  const b64auth = authHeader.split(" ")[1] || "";
+  // RIGHT: Read the header sent by the browser
+  const auth = req.headers.authorization;
+  if (!auth) {
+    res.set("WWW-Authenticate", 'Basic realm="401"');
+    return res.status(401).send("Authentication required");
+  }
+
+  const b64auth = auth.split(" ")[1] || "";
   const [login, password] = Buffer.from(b64auth, "base64")
     .toString()
     .split(":");
@@ -83,8 +48,8 @@ const protectAdmin = (req, res, next) => {
   if (login === ADMIN_USER && password === ADMIN_PASS) {
     return next();
   }
-  res.set("WWW-Authenticate", 'Basic realm="401"');
-  res.status(401).send("Authentication required");
+
+  res.status(401).send("Invalid Credentials");
 };
 
 // --- API ROUTES ---
@@ -126,6 +91,84 @@ app.get("/api/voters", protectAdmin, async (req, res) => {
 app.post("/api/vote", async (req, res) => {
   // ... existing vote logic
 });
+// Temporary store for OTPs (In production, use a DB table)
+const otpStore = new Map();
+
+app.post("/api/send-otp", async (req, res) => {
+  const { regNo } = req.body; // 1. Frontend only sends the Registration Number
+
+  try {
+    // 2. Query the DB to find the student and their official email
+    const studentQuery = await pool.query(
+      "SELECT email, name FROM students WHERE reg_no = $1 AND has_voted = false",
+      [regNo],
+    );
+
+    if (studentQuery.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Student not found or has already voted." });
+    }
+
+    const { email, name } = studentQuery.rows[0];
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    // 3. Store the OTP against the email in your Map (or DB)
+    otpStore.set(email, {
+      code: otp.toString(),
+      expires: Date.now() + 5 * 60 * 1000,
+    });
+
+    // 4. Send to the email found in the database
+    await resend.emails.send({
+      from: "PANS Verification <onboarding@resend.dev>",
+      to: email,
+      subject: "Your Voting OTP",
+      html: `<strong>Hello ${name}, your OTP is ${otp}</strong>. It expires in 5 minutes.`,
+    });
+
+    // 5. Tell the frontend it worked (but don't reveal the full email for privacy)
+    const maskedEmail = email.replace(/(.{2})(.*)(?=@)/, (gp1, gp2, gp3) => {
+      return gp2 + "*".repeat(gp3.length);
+    });
+
+    res.status(200).json({
+      message: "OTP sent successfully",
+      sentTo: maskedEmail, // e.g., "uw***@gmail.com"
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to process OTP request" });
+  }
+});
+
+// 3. Verification Route
+app.post("/api/verify-otp", async (req, res) => {
+  const { regNo, userCode } = req.body;
+
+  try {
+    // Look up the email associated with this Reg No
+    const student = await pool.query(
+      "SELECT email FROM students WHERE reg_no = $1",
+      [regNo],
+    );
+    if (student.rows.length === 0)
+      return res.status(404).json({ message: "Student not found" });
+
+    const email = student.rows[0].email;
+    const record = otpStore.get(email);
+
+    if (!record || record.code !== userCode || Date.now() > record.expires) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    otpStore.delete(email);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Verification error" });
+  }
+});
+
 
 // --- SERVING THE FRONTEND ---
 
@@ -138,8 +181,6 @@ app.use(
 
 // Public Voter Portal
 app.use(express.static(path.join(__dirname, "dist-voter")));
-
-// SPA Routing
 app.get(/\/admin\/.*/, protectAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-admin", "index.html"));
 });
@@ -147,6 +188,9 @@ app.get(/\/admin\/.*/, protectAdmin, (req, res) => {
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-voter", "index.html"));
 });
+
+
+// SPA Routing
 
 const PORT = 8000;
 app.listen(PORT, () => console.log(`Election System live on port ${PORT}`));

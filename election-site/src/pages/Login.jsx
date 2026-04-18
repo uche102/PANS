@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Smartphone, ArrowLeft } from "lucide-react"
+import { Lock, Mail, ArrowLeft } from "lucide-react";
 import panslogo from "../assets/IMG-20260410-WA0090.jpg";
 import libertyImg from "../assets/liberty.jpeg";
 const Login = () => {
@@ -10,24 +10,62 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const maskedPhone = "080******42";
+  const [maskedEmail, setMaskedEmail] = useState("");
 
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const response = await fetch("http://localhost:8000/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regNo: regNumber }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMaskedEmail(data.sentTo); // Use the masked email from backend
+        setStep(2);
+      } else {
+        alert(data.error || "Student not found");
+      }
+      // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+      alert("Server error. Is your backend running?");
+    } finally {
       setLoading(false);
-      setStep(2);
-    }, 1500);
+    }
   };
 
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const response = await fetch("http://localhost:8000/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          regNo: regNumber, // Backend will use this to find the correct OTP record
+          userCode: otp,
+        }),
+      });
+
+      if (response.ok) {
+        // Store verification status if needed, then move to ballot
+        navigate("/ballot", { state: { voterId: regNumber } });
+      } else {
+        const data = await response.json();
+        alert(data.message || "Invalid OTP");
+      }
+      // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+      alert("Verification failed");
+    } finally {
       setLoading(false);
-      navigate("/ballot");
-    }, 1500);
+    }
   };
 
   return (
@@ -36,7 +74,6 @@ const Login = () => {
       className="login-page"
       style={{ backgroundImage: `url(${libertyImg})` }}
     >
-      
       <div className="login-card">
         {/* Faculty Branding */}
         <div className="brand-section">
@@ -71,10 +108,10 @@ const Login = () => {
         ) : (
           <form onSubmit={handleVerifyOTP} className="login-form">
             <div className="otp-info">
-              <Smartphone size={20} color="var(--accent)" />
+              <Mail size={20} color="var(--accent)" />
               <p>
                 OTP sent to{" "}
-                <span className="highlight-text">{maskedPhone}</span>
+                <span className="highlight-text">{maskedEmail}</span>
               </p>
             </div>
             <input

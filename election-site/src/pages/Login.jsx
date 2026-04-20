@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, ArrowLeft } from "lucide-react";
+import {  Mail, ArrowLeft } from "lucide-react";
 import panslogo from "../assets/IMG-20260410-WA0090.jpg";
 import libertyImg from "../assets/liberty.jpeg";
 const Login = () => {
@@ -26,7 +26,7 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setMaskedEmail(data.sentTo); // Use the masked email from backend
+        setMaskedEmail(data.send); // masked email from backend
         setStep(2);
       } else {
         alert(data.error || "Student not found");
@@ -55,11 +55,12 @@ const Login = () => {
 
       if (response.ok) {
         // Store verification status if needed, then move to ballot
-        navigate("/ballot", { state: { voterId: regNumber } });
+        navigate("/otp", { state: { voterId: regNumber } });
       } else {
         const data = await response.json();
         alert(data.message || "Invalid OTP");
       }
+
       // eslint-disable-next-line no-unused-vars
     } catch (err) {
       alert("Verification failed");

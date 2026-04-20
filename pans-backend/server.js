@@ -3,13 +3,12 @@ import { Pool } from "pg";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Resend } from "resend";
-import dotenv from "dotenv";  
+import axios from "axios";
+import dotenv from "dotenv";
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 
@@ -90,57 +89,64 @@ app.get("/api/voters", protectAdmin, async (req, res) => {
 });
 
 // Public Vote Route
-app.post("/api/vote", async (req, res) => {
-  // ... existing vote logic
-});
+app.post("/api/vote", async (req, res) => {});
 // Temporary store for OTPs (In production, use a DB table)
 const otpStore = new Map();
 
 app.post("/api/send-otp", async (req, res) => {
-  const { regNo } = req.body; // 1. Frontend only sends the Registration Number
-
+  const { regNo } = req.body;
   try {
-    // 2. Query the DB to find the student and their official email
-    const studentQuery = await pool.query(
-      "SELECT email, name FROM students WHERE reg_no = $1 AND has_voted = false",
+    // 1. UPDATED: Query 'voters' table and check 'voted' column
+    const student = await pool.query(
+      "SELECT phone_number, name FROM voters WHERE reg_no = $1 AND voted = false",
       [regNo],
     );
 
-    if (studentQuery.rows.length === 0) {
+    if (student.rows.length === 0) {
+      // Professional tip: Check if they exist but already voted to give a better error
       return res
         .status(404)
-        .json({ error: "Student not found or has already voted." });
+        .json({ error: "Voter not found or already voted." });
     }
 
-    const { email, name } = studentQuery.rows[0];
-    const otp = Math.floor(100000 + Math.random() * 900000);
+    const { phone_number: phoneNumber, name } = student.rows[0];
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 3. Store the OTP against the email in your Map (or DB)
-    otpStore.set(email, {
-      code: otp.toString(),
+    // 2. Save OTP locally for verification
+    otpStore.set(phoneNumber, {
+      code: otp,
       expires: Date.now() + 5 * 60 * 1000,
     });
 
-    // 4. Send to the email found in the database
-    await resend.emails.send({
-      from: "PANS Verification <onboarding@resend.dev>",
-      to: email,
-      subject: "Your Voting OTP",
-      html: `<strong>Hello ${name}, your OTP is ${otp}</strong>. It expires in 5 minutes.`,
-    });
+    // 3. Send via BulkSMSNigeria
+    const response = await axios.post(
+      "https://www.bulksmsnigeria.com/api/v2/sms",
+      {
+        from: process.env.BULKSMS_SENDER_ID || "PANSUNIZIK",
+        to: phoneNumber,
+        body: `Hello ${name}, your PANS election OTP is ${otp}. Valid for 5 mins.`,
+        gateway: "direct-corporate",
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.BULKSMS_TOKEN}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-    // 5. Tell the frontend it worked (but don't reveal the full email for privacy)
-    const maskedEmail = email.replace(/(.{2})(.*)(?=@)/, (gp1, gp2, gp3) => {
-      return gp2 + "*".repeat(gp3.length);
-    });
+    // 4. Mask the phone for security in the UI
+    const maskedPhone = phoneNumber.replace(
+      /(\d{3})(\d{5})(\d{2})/,
+      "$1******$3",
+    );
 
-    res.status(200).json({
-      message: "OTP sent successfully",
-      sentTo: maskedEmail, // e.g., "uw***@gmail.com"
-    });
+    res.json({ success: true, sentTo: maskedPhone });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to process OTP request" });
+    // Log the actual gateway error for debugging
+    console.error("BulkSMS Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Failed to dispatch SMS OTP" });
   }
 });
 
@@ -149,30 +155,28 @@ app.post("/api/verify-otp", async (req, res) => {
   const { regNo, userCode } = req.body;
 
   try {
-    // Look up the email associated with this Reg No
     const student = await pool.query(
-      "SELECT email FROM students WHERE reg_no = $1",
+      "SELECT phone_number FROM voters WHERE reg_no = $1",
       [regNo],
     );
     if (student.rows.length === 0)
       return res.status(404).json({ message: "Student not found" });
 
-    const email = student.rows[0].email;
-    const record = otpStore.get(email);
+    const phoneNumber = student.rows[0].phone_number;
+    const record = otpStore.get(phoneNumber);
 
     if (!record || record.code !== userCode || Date.now() > record.expires) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    otpStore.delete(email);
+    otpStore.delete(phoneNumber);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Verification error" });
   }
 });
 
-
-// --- SERVING THE FRONTEND ---
+// --- SERVING FRONTEND ---
 
 // Protected Admin Folder (Stops students from downloading the UI)
 app.use(
@@ -190,7 +194,6 @@ app.get(/\/admin\/.*/, protectAdmin, (req, res) => {
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-voter", "index.html"));
 });
-
 
 // SPA Routing
 

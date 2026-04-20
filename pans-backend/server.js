@@ -30,8 +30,8 @@ const pool = new Pool({
 });
 
 // --- SECURITY SETTINGS ---
-const ADMIN_USER = "pans_admin";
-const ADMIN_PASS = "PANS2026";
+const ADMIN_PASS = process.env.ADMIN_PASSWORD || "FallbackPass";
+
 
 const protectAdmin = (req, res, next) => {
   // RIGHT: Read the header sent by the browser
@@ -181,13 +181,13 @@ app.post("/api/verify-otp", async (req, res) => {
 // Protected Admin Folder (Stops students from downloading the UI)
 app.use(
   "/admin",
-  protectAdmin,
+  protectAdmin, // This ensures the browser asks for a password immediately
   express.static(path.join(__dirname, "dist-admin")),
 );
 
 // Public Voter Portal
 app.use(express.static(path.join(__dirname, "dist-voter")));
-app.get(/\/admin\/.*/, protectAdmin, (req, res) => {
+app.get("/admin/*", protectAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-admin", "index.html"));
 });
 

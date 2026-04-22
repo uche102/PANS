@@ -11,34 +11,30 @@ import { Users, BarChart3, LogOut, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // 1. Move authHeader outside the component to prevent re-creation on every render
-const authHeader = {
-  Authorization: `Basic ${btoa("pans_admin:PANS2026")}`,
-};
 
-const AdminDashboard = ({ setAuth }) => {
+
+const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("results");
   const [presidentialData, setPresidentialData] = useState([]);
   const [votersList, setVotersList] = useState([]);
 
   // 2. Optimized Sync Function
-  const syncData = async () => {
-    try {
-      // Fetch Results
-      const resResults = await fetch("/api/results", { headers: authHeader });
-      if (!resResults.ok) throw new Error("Unauthorized Results Access");
-      const resultsData = await resResults.json();
-      setPresidentialData(resultsData);
+const syncData = async () => {
+  try {
+    const resResults = await fetch("/api/results");
+    if (!resResults.ok) throw new Error(`Results error: ${resResults.status}`);
+    const resultsData = await resResults.json();
+    setPresidentialData(resultsData);
 
-      // Fetch Voters List
-      const resVoters = await fetch("/api/voters", { headers: authHeader });
-      if (!resVoters.ok) throw new Error("Unauthorized Voters Access");
-      const votersData = await resVoters.json();
-      setVotersList(votersData);
-    } catch (err) {
-      console.error("Dashboard Sync Error:", err);
-    }
-  };
+    const resVoters = await fetch("/api/voters");
+    if (!resVoters.ok) throw new Error(`Voters error: ${resVoters.status}`);
+    const votersData = await resVoters.json();
+    setVotersList(votersData);
+  } catch (err) {
+    console.error("Dashboard Sync Error:", err);
+  }
+};
 
   // 3. Single useEffect for Polling (Consolidated)
   useEffect(() => {
@@ -55,10 +51,10 @@ const AdminDashboard = ({ setAuth }) => {
 
   const COLORS = ["#10b981", "#fbbf24", "#3b82f6", "#ef4444"];
 
-  const handleLogout = () => {
-    setAuth(false);
-    navigate("/");
-  };
+ const handleLogout = () => {
+   localStorage.removeItem("adminLoggedIn");
+   navigate("/");
+ };
 
   return (
     <div className="admin-container">
@@ -68,18 +64,13 @@ const AdminDashboard = ({ setAuth }) => {
         </div>
         <nav>
           <button
-            className={`nav-item ${activeTab === "results" ? "active" : ""}`}
-            onClick={() => setActiveTab("results")}
-          >
-            <BarChart3 size={20} /> Results
-          </button>
-          <button
-            className={`nav-item ${activeTab === "voters" ? "active" : ""}`}
+            className={`admin-nav-item ${activeTab === "voters" ? "active" : ""}`}
             onClick={() => setActiveTab("voters")}
           >
             <Users size={20} /> Voters List
           </button>
-          <button onClick={handleLogout} className="nav-item logout">
+
+          <button onClick={handleLogout} className="admin-nav-item">
             <LogOut size={20} /> Exit
           </button>
         </nav>
@@ -105,7 +96,7 @@ const AdminDashboard = ({ setAuth }) => {
 
         {activeTab === "results" ? (
           <section
-            className="charts-grid"
+            className="admin-charts-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
@@ -114,7 +105,7 @@ const AdminDashboard = ({ setAuth }) => {
           >
             {[...new Set(presidentialData.map((item) => item.office))].map(
               (officeName) => (
-                <div className="chart-card" key={officeName}>
+                <div className="admin-chart-card" key={officeName}>
                   <h3>{officeName} Results</h3>
                   <div style={{ width: "100%", height: "300px", minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">

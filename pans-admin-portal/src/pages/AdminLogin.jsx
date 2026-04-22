@@ -1,48 +1,54 @@
 import React, { useState } from "react";
-import { ShieldAlert, Lock, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import panslogo from "../assets/IMG-20260410-WA0090.jpg";
 
-const AdminLogin = ({ setAuth }) => {
+const AdminLogin = () => {
+  const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
 
-const handleLogin = async (e) => {
-  e.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError(false);
 
-  try {
-    const response = await fetch("/api/admin-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
+    try {
+      const response = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: "pans_admin",
+          password,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.success) {
-      setAuth(true);
-    } else {
+      if (data.success) {
+        localStorage.setItem("adminLoggedIn", "true");
+        navigate("/dashboard");
+      } else {
+        setError(true);
+        setTimeout(() => setError(false), 3000);
+      }
+    } catch (err) {
       setError(true);
-      setTimeout(() => setError(false), 3000);
     }
-  // eslint-disable-next-line no-unused-vars
-  } catch (err) {
-    setError(true);
-  }
-};
+  };
 
   return (
     <div className="admin-login-screen">
       <div className="login-panel">
         <div className="security-header">
           <div className="brand-icon">
-          <img
-            src={panslogo}
-            alt="PANS UNIZIK Logo"
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          />
+            <img
+              src={panslogo}
+              alt="PANS UNIZIK Logo"
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
           </div>
           <h2>Directorate Access</h2>
-          <p>PANS UNIZIK Election </p>
+          <p>PANS UNIZIK Election</p>
         </div>
 
         <form onSubmit={handleLogin} className="admin-login-form">
@@ -61,7 +67,7 @@ const handleLogin = async (e) => {
           </div>
 
           {error && (
-            <p className="error-text">Invalid Access Key. Attempt Logged.</p>
+            <p className="error-text">Invalid Access Key. Attempt logged.</p>
           )}
 
           <button type="submit" className="admin-login-btn">

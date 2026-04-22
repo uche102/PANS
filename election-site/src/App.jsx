@@ -1,10 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Ballot = lazy(() => import("./pages/Ballot.jsx"));
@@ -17,24 +12,22 @@ const ProtectedBallot = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <main>
-        <Suspense fallback={<div>Loading...</div>}>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route
-              path="/ballot"
-              element={
-                <ProtectedBallot>
-                  <Ballot />
-                </ProtectedBallot>
-              }
-            />
-            <Route path="/success" element={<Success />} />
-          </Routes>
-        </Suspense>
-      </main>
-    </Router>
+    <main>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route
+            path="/ballot"
+            element={
+              <ProtectedBallot>
+                <Ballot />
+              </ProtectedBallot>
+            }
+          />
+          <Route path="/success" element={<Success />} />
+        </Routes>
+      </Suspense>
+    </main>
   );
 }
 

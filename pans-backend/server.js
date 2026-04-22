@@ -8,6 +8,8 @@ import axios from "axios";
 import dotenv from "dotenv";
 
 dotenv.config();
+console.log("ADMIN USER =", process.env.ADMIN_USER);
+console.log("ADMIN PASS =", process.env.ADMIN_PASS);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +37,13 @@ app.use(express.json());
 // --- SECURITY SETTINGS ---
 const ADMIN_USER = process.env.ADMIN_USER || "admin"; // FIXED: Added missing variable
 const ADMIN_PASS = process.env.ADMIN_PASS || "FallbackPass";
+let adminLoggedIn = false;
+const requireAdmin = (req, res, next) => {
+  if (!adminLoggedIn) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+  next();
+};
 
 const protectAdmin = (req, res, next) => {
   const auth = req.headers.authorization;
@@ -62,6 +71,7 @@ const otpStore = new Map();
 // Send OTP via BulkSMSNigeria
 app.post("/api/send-otp", async (req, res) => {
   const { regNo } = req.body;
+
   try {
     const student = await pool.query(
       "SELECT phone_number, name FROM voters WHERE reg_no = $1 AND voted = false",
@@ -73,6 +83,7 @@ app.post("/api/send-otp", async (req, res) => {
         .status(404)
         .json({ error: "Voter not found or already voted." });
     }
+
     const { phone_number: phoneNumber, name } = student.rows[0];
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -81,35 +92,21 @@ app.post("/api/send-otp", async (req, res) => {
       expires: Date.now() + 5 * 60 * 1000,
     });
 
-    await axios.post(
-      "https://api.ng.termii.com/api/sms/send",
-      {
-        to: phoneNumber,
-        from: process.env.TERMII_SENDER_ID,
-        sms: `Hello ${name}, your PANS election OTP is ${otp}. Valid for 5 mins.`,
-        type: "plain",
-        channel: "generic",
-        api_key: process.env.TERMII_API_KEY,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    console.log(`TEST OTP for ${name} (${regNo}): ${otp}`);
 
     const maskedPhone = phoneNumber.replace(
       /(\d{3})(\d{5})(\d{2})/,
       "$1******$3",
     );
-    res.json({ success: true, sentTo: maskedPhone });
+
+    res.json({
+      success: false,
+      sentTo: maskedPhone,
+      testMode: true,
+    });
   } catch (err) {
-  const details = err.response?.data || err.message;
-  console.error("Termii Error:", details);
-  res.status(500).json({
-    error: "Failed to dispatch SMS OTP",
-    details,
-  });
+    console.error("OTP Error:", err);
+    res.status(500).json({ error: "Failed to generate OTP" });
   }
 });
 
@@ -187,22 +184,94 @@ app.post("/api/vote", async (req, res) => {
     client.release();
   }
 });
+app.post("/api/admin-login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    adminLoggedIn = true;
+    return res.json({ success: true });
+  }
+
+  return res.status(401).json({ error: "Invalid admin credentials" });
+});
 
 // Serving UI
-app.use(
-  "/admin",
-  protectAdmin,
-  express.static(path.join(__dirname, "dist-admin")),
-);
+// app.use(
+//   "/admin",
+//   protectAdmin,
+//   express.static(path.join(__dirname, "dist-admin")),
+// );
+// Serve built files
+app.use("/admin", express.static(path.join(__dirname, "dist-admin")));
 app.use(express.static(path.join(__dirname, "dist-voter")));
 
-// This tells Express: "Match anything that starts with /admin/ and capture the rest"
-app.get(/^\/admin\/.*$/, protectAdmin, (req, res) => {
+// Admin SPA
+app.get(/^\/admin(?:\/.*)?$/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-admin", "index.html"));
 });
 
+// Voter SPA
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-voter", "index.html"));
 });
+
+app.get("/api/results", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        c.office,
+        c.name,
+        COUNT(v.id)::int AS value
+      FROM candidates c
+      LEFT JOIN votes v ON v.candidate_id = c.id
+      GROUP BY c.id, c.office, c.name
+      ORDER BY c.office, c.name
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Results fetch error:", err);
+    res.status(500).json({ error: "Failed to load results" });
+  }
+});
+
+app.get("/api/voters", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        reg_no AS reg,
+        CASE 
+          WHEN voted = true THEN 'Voted'
+          ELSE 'Not Voted'
+        END AS status
+      FROM voters
+      ORDER BY reg_no
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Voters fetch error:", err);
+    res.status(500).json({ error: "Failed to load voters" });
+  }
+});
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`Election System live on port ${PORT}`));
+
+const server = app.listen(PORT, () => {
+  console.log(`Election System live on port ${PORT}`);
+});
+
+server.on("error", (err) => {
+  console.error("SERVER ERROR:", err);
+});
+
+process.on("exit", (code) => {
+  console.log("PROCESS EXITED WITH CODE:", code);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED REJECTION:", err);
+});

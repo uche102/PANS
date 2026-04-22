@@ -1,20 +1,27 @@
 import React, { useState } from "react";
+import { User, Lock, Mail, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Mail, ArrowLeft } from "lucide-react";
-import panslogo from "../assets/IMG-20260410-WA0090.jpg";
-import libertyImg from "../assets/liberty.jpeg";
+import pansLogo from "../assets/IMG-20260410-WA0090.jpg";
+import welcome from "../assets/welcome.jpeg";
+
 const Login = () => {
+  const navigate = useNavigate();
+
   const [step, setStep] = useState(1);
   const [regNumber, setRegNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
   const [maskedPhone, setMaskedPhone] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isTestMode, setIsTestMode] = useState(false);
 
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
-    console.log("Sending OTP...");
+  const handleSendOTP = async () => {
+    setErrorMessage("");
+
+    if (!regNumber.trim()) {
+      setErrorMessage("Please enter your registration number.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -31,13 +38,14 @@ const Login = () => {
 
       if (response.ok) {
         setMaskedPhone(data.sentTo);
+        setIsTestMode(!!data.testMode);
         setStep(2);
       } else {
-        alert(data.error || "Student not found");
+        setErrorMessage(data.error || "Student not found.");
       }
     } catch (error) {
       console.error("OTP send error:", error);
-      alert("Could not connect to backend.");
+      setErrorMessage("Could not connect to backend.");
     } finally {
       setLoading(false);
     }
@@ -45,109 +53,137 @@ const Login = () => {
 
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setErrorMessage("");
+
+    if (!otp.trim()) {
+      setErrorMessage("Please enter your verification code.");
+      return;
+    }
 
     try {
+      setLoading(true);
+
       const response = await fetch("http://localhost:8000/api/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          regNo: regNumber, // Backend will use this to find the correct OTP record
-          userCode: otp,
+          regNo: regNumber.trim(),
+          userCode: otp.trim(),
         }),
       });
 
-      if (response.ok) {
-        localStorage.setItem("voterRegNo", regNumber);
-        navigate("/ballot", { state: { voterId: regNumber } });
-      } else {
-        const data = await response.json();
-        alert(data.message || "Invalid OTP");
-      }
+      const data = await response.json();
 
-      // eslint-disable-next-line no-unused-vars
+      if (response.ok) {
+        localStorage.setItem("voterRegNo", regNumber.trim());
+        navigate("/ballot", { state: { voterId: regNumber.trim() } });
+      } else {
+        setErrorMessage(data.message || "Invalid verification code.");
+      }
     } catch (err) {
-      alert("Verification failed");
+      console.error("OTP verify error:", err);
+      setErrorMessage("Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    /* This is the main full-screen container with the background image */
-    <div
-      className="login-page"
-      style={{ backgroundImage: `url(${libertyImg})` }}
-    >
-      <div className="login-card">
-        {/* Faculty Branding */}
-        <div className="brand-section">
-          <div className="brand-icon">
-            <img
-              src={panslogo}
-              alt="PANS UNIZIK Logo"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
+    <div className="login-page" style={{ backgroundImage: `url(${welcome})` }}>
+      <div className="overlay">
+        <div className="login-card">
+          <div className="logo-section">
+            <img src={pansLogo} alt="PANS Logo" className="pans-logo" />
+            <h1>PANS E-VOTING PORTAL</h1>
+            <p>Secure, Easy & Transparent Elections</p>
           </div>
-          <h1 className="brand-title">PANS UNIZIK</h1>
-          <p className="brand-subtitle">Voter Verification Portal</p>
-        </div>
 
-        {step === 1 ? (
-          <form className="login-form">
-            <div className="input-group">
-              <label className="input-label">Registration Number</label>
-              <input
-                type="text"
-                placeholder="20XX/XXXXXX"
-                className="text-input"
-                value={regNumber}
-                onChange={(e) => setRegNumber(e.target.value.toUpperCase())}
-                required
-              />
-            </div>
-            <button
-              type="button"
-              disabled={loading}
-              className="primary-button"
-              onClick={handleSendOTP}
-            >
-              {loading ? "Sending OTP..." : "GENERATE OTP"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOTP} className="login-form">
-            <div className="otp-info">
-              <Mail size={20} color="var(--accent)" />
-              <p>
-                OTP sent to{" "}
-                <span className="highlight-text">{maskedPhone}</span>
-              </p>
-            </div>
-            <input
-              type="text"
-              placeholder="0 0 0 0 0 0"
-              className="otp-input"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              maxLength={6}
-              required
-            />
-            <button disabled={loading} className="primary-button">
-              {loading ? "Authenticating..." : "CAST MY VOTE"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="back-button"
-            >
-              <ArrowLeft size={14} /> EDIT REGISTRATION NUMBER
-            </button>
-          </form>
-        )}
+          {step === 1 ? (
+            <div className="login-form">
+              <div className="input-group">
+                <label className="input-label">Registration Number</label>
+                <div className="input-wrapper">
+                  <User size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    placeholder="20XX/XXXXXX"
+                    className="text-input"
+                    value={regNumber}
+                    onChange={(e) => {
+                      setRegNumber(e.target.value.toUpperCase());
+                      if (errorMessage) setErrorMessage("");
+                    }}
+                    required
+                  />
+                </div>
+                {errorMessage && <p className="form-error">{errorMessage}</p>}
+              </div>
 
-        <div className="footer-note">
-          <p>PANS • 2026 Election</p>
+              <button
+                type="button"
+                disabled={loading}
+                className="primary-button"
+                onClick={handleSendOTP}
+              >
+                {loading ? "Sending OTP..." : "GENERATE OTP"}
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleVerifyOTP} className="login-form">
+              <div className="otp-info">
+                <Mail size={20} color="var(--accent)" />
+                <p>
+                  OTP sent to{" "}
+                  <span className="highlight-text">{maskedPhone}</span>
+                </p>
+              </div>
+
+              {isTestMode && (
+                <p className="test-mode-note">
+                  Test mode is active. Ask the administrator for the
+                  verification code shown in the backend terminal.
+                </p>
+              )}
+
+              <div className="input-group">
+                <label className="input-label">Verification Code</label>
+                <div className="input-wrapper">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    placeholder="000000"
+                    className="text-input"
+                    value={otp}
+                    onChange={(e) => {
+                      setOtp(e.target.value.replace(/\D/g, ""));
+                      if (errorMessage) setErrorMessage("");
+                    }}
+                    maxLength={6}
+                    required
+                  />
+                </div>
+                {errorMessage && <p className="form-error">{errorMessage}</p>}
+              </div>
+
+              <button disabled={loading} className="primary-button">
+                {loading ? "Authenticating..." : "CAST MY VOTE"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1);
+                  setOtp("");
+                  setMaskedPhone("");
+                  setErrorMessage("");
+                  setIsTestMode(false);
+                }}
+                className="back-button"
+              >
+                <ArrowLeft size={14} /> EDIT REGISTRATION NUMBER
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

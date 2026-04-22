@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { CheckCircle, Home, Download, Share2 } from "lucide-react";
+import { CheckCircle, Home, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import welcome from "../assets/welcome.jpeg";
 
 const Success = () => {
   const navigate = useNavigate();
   const [voteRef] = useState(
-    () => "PANS-" + Math.random().toString(36).substr(2, 9).toUpperCase(),
+    () => "PANS-" + Math.random().toString(36).slice(2, 11).toUpperCase(),
   );
 
   return (
@@ -50,8 +50,7 @@ const Success = () => {
           </div>
 
           <p className="security-footer">
-            A secure record of your vote has been logged against your
-            Registration Number.
+            Your vote has been recorded successfully for this test election.
           </p>
         </div>
       </div>

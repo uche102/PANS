@@ -1,20 +1,38 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Login from "./pages/Login.jsx";
-import Ballot from "./pages/Ballot.jsx";
-import Success from "./pages/Success";
-import "./index.css"; 
+import React, { Suspense, lazy } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+
+const Login = lazy(() => import("./pages/Login.jsx"));
+const Ballot = lazy(() => import("./pages/Ballot.jsx"));
+const Success = lazy(() => import("./pages/Success.jsx"));
+
+const ProtectedBallot = ({ children }) => {
+  const voterRegNo = localStorage.getItem("voterRegNo");
+  return voterRegNo ? children : <Navigate to="/" replace />;
+};
 
 function App() {
   return (
     <Router>
       <main>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/ballot" element={<Ballot />} />
-          <Route path="/success" element={<Success />} />
-          {/* <Route path="/admin" element={<AdminDashboard />} />  */}
-        </Routes>
+        <Suspense fallback={<div>Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route
+              path="/ballot"
+              element={
+                <ProtectedBallot>
+                  <Ballot />
+                </ProtectedBallot>
+              }
+            />
+            <Route path="/success" element={<Success />} />
+          </Routes>
+        </Suspense>
       </main>
     </Router>
   );

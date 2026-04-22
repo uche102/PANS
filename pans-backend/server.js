@@ -1,16 +1,27 @@
 import express from "express";
-import { Pool } from "pg";
+import pkg from "pg";
+const { Pool } = pkg;
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// --- DATABASE CONFIGURATION ---
+const pool = new Pool({
+  user: process.env.DB_USER || "postgres",
+  host: process.env.DB_HOST || "localhost",
+  database: process.env.DB_NAME || "pans_election",
+  password: process.env.DB_PASSWORD || "password",
+  port: process.env.DB_PORT || 5432,
+});
 
 app.use(
   cors({
@@ -21,20 +32,11 @@ app.use(
 );
 app.use(express.json());
 
-const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "pans_election",
-  password: process.env.DB_PASSWORD || "password",
-  port: 5432,
-});
-
 // --- SECURITY SETTINGS ---
-const ADMIN_PASS = process.env.ADMIN_PASSWORD || "FallbackPass";
-
+const ADMIN_USER = process.env.ADMIN_USER || "admin"; // FIXED: Added missing variable
+const ADMIN_PASS = process.env.ADMIN_PASS || "FallbackPass";
 
 const protectAdmin = (req, res, next) => {
-  // RIGHT: Read the header sent by the browser
   const auth = req.headers.authorization;
   if (!auth) {
     res.set("WWW-Authenticate", 'Basic realm="401"');
@@ -46,114 +48,74 @@ const protectAdmin = (req, res, next) => {
     .toString()
     .split(":");
 
+  // FIXED: Now uses the defined ADMIN_USER
   if (login === ADMIN_USER && password === ADMIN_PASS) {
     return next();
   }
-
   res.status(401).send("Invalid Credentials");
 };
 
 // --- API ROUTES ---
 
-// Public Login Route (Used by AdminLogin.jsx)
-app.post("/api/admin-login", (req, res) => {
-  const { password } = req.body;
-  if (password === ADMIN_PASS) {
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ success: false, message: "Invalid Key" });
-  }
-});
-
-// Protected Data Routes
-app.get("/api/results", protectAdmin, async (req, res) => {
-  try {
-    const results = await pool.query(
-      "SELECT office, name, votes as value FROM candidates ORDER BY office, id",
-    );
-    res.json(results.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/voters", protectAdmin, async (req, res) => {
-  try {
-    const list = await pool.query(
-      "SELECT reg_no as reg, TO_CHAR(vote_time, 'HH:MI AM') as time FROM voters ORDER BY vote_time DESC",
-    );
-    res.json(list.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Public Vote Route
-app.post("/api/vote", async (req, res) => {});
-// Temporary store for OTPs (In production, use a DB table)
 const otpStore = new Map();
 
+// Send OTP via BulkSMSNigeria
 app.post("/api/send-otp", async (req, res) => {
   const { regNo } = req.body;
   try {
-    // 1. UPDATED: Query 'voters' table and check 'voted' column
     const student = await pool.query(
       "SELECT phone_number, name FROM voters WHERE reg_no = $1 AND voted = false",
       [regNo],
     );
 
     if (student.rows.length === 0) {
-      // Professional tip: Check if they exist but already voted to give a better error
       return res
         .status(404)
         .json({ error: "Voter not found or already voted." });
     }
-
     const { phone_number: phoneNumber, name } = student.rows[0];
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 2. Save OTP locally for verification
     otpStore.set(phoneNumber, {
       code: otp,
       expires: Date.now() + 5 * 60 * 1000,
     });
 
-    // 3. Send via BulkSMSNigeria
-    const response = await axios.post(
-      "https://www.bulksmsnigeria.com/api/v2/sms",
+    await axios.post(
+      "https://api.ng.termii.com/api/sms/send",
       {
-        from: process.env.BULKSMS_SENDER_ID || "PANSUNIZIK",
         to: phoneNumber,
-        body: `Hello ${name}, your PANS election OTP is ${otp}. Valid for 5 mins.`,
-        gateway: "direct-corporate",
+        from: process.env.TERMII_SENDER_ID,
+        sms: `Hello ${name}, your PANS election OTP is ${otp}. Valid for 5 mins.`,
+        type: "plain",
+        channel: "generic",
+        api_key: process.env.TERMII_API_KEY,
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.BULKSMS_TOKEN}`,
-          Accept: "application/json",
           "Content-Type": "application/json",
         },
       },
     );
 
-    // 4. Mask the phone for security in the UI
     const maskedPhone = phoneNumber.replace(
       /(\d{3})(\d{5})(\d{2})/,
       "$1******$3",
     );
-
     res.json({ success: true, sentTo: maskedPhone });
   } catch (err) {
-    // Log the actual gateway error for debugging
-    console.error("BulkSMS Error:", err.response?.data || err.message);
-    res.status(500).json({ error: "Failed to dispatch SMS OTP" });
+  const details = err.response?.data || err.message;
+  console.error("Termii Error:", details);
+  res.status(500).json({
+    error: "Failed to dispatch SMS OTP",
+    details,
+  });
   }
 });
 
-// 3. Verification Route
+// Verification Route
 app.post("/api/verify-otp", async (req, res) => {
   const { regNo, userCode } = req.body;
-
   try {
     const student = await pool.query(
       "SELECT phone_number FROM voters WHERE reg_no = $1",
@@ -175,27 +137,72 @@ app.post("/api/verify-otp", async (req, res) => {
     res.status(500).json({ error: "Verification error" });
   }
 });
+app.post("/api/vote", async (req, res) => {
+  const { regNo, candidateIds } = req.body;
 
-// --- SERVING FRONTEND ---
+  if (!regNo || !Array.isArray(candidateIds) || candidateIds.length === 0) {
+    return res.status(400).json({ error: "Invalid vote payload" });
+  }
 
-// Protected Admin Folder (Stops students from downloading the UI)
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const voterResult = await client.query(
+      "SELECT id, voted FROM voters WHERE reg_no = $1 FOR UPDATE",
+      [regNo],
+    );
+
+    if (voterResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Voter not found" });
+    }
+
+    const voter = voterResult.rows[0];
+
+    if (voter.voted) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Voter has already voted" });
+    }
+
+    for (const candidateId of candidateIds) {
+      await client.query(
+        "INSERT INTO votes (voter_id, candidate_id) VALUES ($1, $2)",
+        [voter.id, candidateId],
+      );
+    }
+
+    await client.query("UPDATE voters SET voted = true WHERE id = $1", [
+      voter.id,
+    ]);
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Vote submitted successfully" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Vote submission error:", err);
+    res.status(500).json({ error: "Failed to submit vote" });
+  } finally {
+    client.release();
+  }
+});
+
+// Serving UI
 app.use(
   "/admin",
-  protectAdmin, // This ensures the browser asks for a password immediately
+  protectAdmin,
   express.static(path.join(__dirname, "dist-admin")),
 );
-
-// Public Voter Portal
 app.use(express.static(path.join(__dirname, "dist-voter")));
-app.get("/admin/*", protectAdmin, (req, res) => {
+
+// This tells Express: "Match anything that starts with /admin/ and capture the rest"
+app.get(/^\/admin\/.*$/, protectAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-admin", "index.html"));
 });
 
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist-voter", "index.html"));
 });
-
-// SPA Routing
-
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Election System live on port ${PORT}`));

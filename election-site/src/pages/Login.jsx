@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {  Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
 import panslogo from "../assets/IMG-20260410-WA0090.jpg";
 import libertyImg from "../assets/liberty.jpeg";
 const Login = () => {
@@ -10,30 +10,34 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const [maskedEmail, setMaskedEmail] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
 
   const handleSendOTP = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    console.log("Sending OTP...");
 
     try {
+      setLoading(true);
+
       const response = await fetch("http://localhost:8000/api/send-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regNo: regNumber }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ regNo: regNumber.trim() }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMaskedEmail(data.send); // masked email from backend
+        setMaskedPhone(data.sentTo);
         setStep(2);
       } else {
         alert(data.error || "Student not found");
       }
-      // eslint-disable-next-line no-unused-vars
-    } catch (err) {
-      alert("Server error. Is your backend running?");
+    } catch (error) {
+      console.error("OTP send error:", error);
+      alert("Could not connect to backend.");
     } finally {
       setLoading(false);
     }
@@ -54,8 +58,8 @@ const Login = () => {
       });
 
       if (response.ok) {
-        // Store verification status if needed, then move to ballot
-        navigate("/otp", { state: { voterId: regNumber } });
+        localStorage.setItem("voterRegNo", regNumber);
+        navigate("/ballot", { state: { voterId: regNumber } });
       } else {
         const data = await response.json();
         alert(data.message || "Invalid OTP");
@@ -90,7 +94,7 @@ const Login = () => {
         </div>
 
         {step === 1 ? (
-          <form onSubmit={handleSendOTP} className="login-form">
+          <form className="login-form">
             <div className="input-group">
               <label className="input-label">Registration Number</label>
               <input
@@ -102,8 +106,13 @@ const Login = () => {
                 required
               />
             </div>
-            <button disabled={loading} className="primary-button">
-              {loading ? "Verifying..." : "GENERATE OTP"}
+            <button
+              type="button"
+              disabled={loading}
+              className="primary-button"
+              onClick={handleSendOTP}
+            >
+              {loading ? "Sending OTP..." : "GENERATE OTP"}
             </button>
           </form>
         ) : (
@@ -112,7 +121,7 @@ const Login = () => {
               <Mail size={20} color="var(--accent)" />
               <p>
                 OTP sent to{" "}
-                <span className="highlight-text">{maskedEmail}</span>
+                <span className="highlight-text">{maskedPhone}</span>
               </p>
             </div>
             <input

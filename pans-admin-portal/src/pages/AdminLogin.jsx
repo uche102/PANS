@@ -7,13 +7,14 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
+  const API_BASE = "http://localhost:8000";
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // VERY IMPORTANT
     setError(false);
 
     try {
-      const response = await fetch("/api/admin-login", {
+      const response = await fetch(`${API_BASE}/api/admin-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -25,12 +26,13 @@ const AdminLogin = () => {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem("adminLoggedIn", "true");
+        localStorage.setItem("adminToken", data.token);
         navigate("/dashboard");
       } else {
         setError(true);
         setTimeout(() => setError(false), 3000);
       }
+      // eslint-disable-next-line no-unused-vars
     } catch (err) {
       setError(true);
     }
@@ -51,7 +53,7 @@ const AdminLogin = () => {
           <p>PANS UNIZIK Election</p>
         </div>
 
-        <form onSubmit={handleLogin} className="admin-login-form">
+        <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="auth-input-group">
             <label>Security Access Key</label>
             <div className="input-wrapper">

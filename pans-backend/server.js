@@ -1,76 +1,95 @@
 import express from "express";
 import pkg from "pg";
-const { Pool } = pkg;
+import jwt from "jsonwebtoken";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import axios from "axios";
 import dotenv from "dotenv";
+import axios from "axios";
 
 dotenv.config();
-console.log("ADMIN USER =", process.env.ADMIN_USER);
-console.log("ADMIN PASS =", process.env.ADMIN_PASS);
+
+const { Pool } = pkg;
+const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+const PORT = process.env.PORT || 8000;
 
-// --- DATABASE CONFIGURATION ---
-const pool = new Pool({
-  user: process.env.DB_USER || "postgres",
-  host: process.env.DB_HOST || "localhost",
-  database: process.env.DB_NAME || "pans_election",
-  password: process.env.DB_PASSWORD || "password",
-  port: process.env.DB_PORT || 5432,
-});
+// DATABASE
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+  : new Pool({
+      user: process.env.DB_USER || "postgres",
+      host: process.env.DB_HOST || "localhost",
+      database: process.env.DB_NAME || "pans_election",
+      password: process.env.DB_PASSWORD || "password",
+      port: process.env.DB_PORT || 5432,
+    });
 
+// MIDDLEWARE
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5000"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5000",
+      "http://localhost:5174",
+      process.env.VOTER_FRONTEND_URL,
+      process.env.ADMIN_FRONTEND_URL,
+    ].filter(Boolean),
     methods: ["GET", "POST"],
     credentials: true,
   }),
 );
+
 app.use(express.json());
 
-// --- SECURITY SETTINGS ---
-const ADMIN_USER = process.env.ADMIN_USER || "admin"; // FIXED: Added missing variable
+// ADMIN CONFIG
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASS = process.env.ADMIN_PASS || "FallbackPass";
-let adminLoggedIn = false;
+const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
+
 const requireAdmin = (req, res, next) => {
-  if (!adminLoggedIn) {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-  next();
-};
-
-const protectAdmin = (req, res, next) => {
   const auth = req.headers.authorization;
-  if (!auth) {
-    res.set("WWW-Authenticate", 'Basic realm="401"');
-    return res.status(401).send("Authentication required");
+
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Admin token required" });
   }
 
-  const b64auth = auth.split(" ")[1] || "";
-  const [login, password] = Buffer.from(b64auth, "base64")
-    .toString()
-    .split(":");
+  try {
+    const token = auth.split(" ")[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-  // FIXED: Now uses the defined ADMIN_USER
-  if (login === ADMIN_USER && password === ADMIN_PASS) {
-    return next();
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ error: "Admin access denied" });
+    }
+
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid or expired admin token" });
   }
-  res.status(401).send("Invalid Credentials");
 };
 
-// --- API ROUTES ---
-
+// TEMP OTP STORE
 const otpStore = new Map();
 
-// Send OTP via BulkSMSNigeria
+// HEALTH CHECK
+app.get("/api/health", (req, res) => {
+  res.json({ success: true, message: "Backend is running" });
+});
+
+// SEND OTP
 app.post("/api/send-otp", async (req, res) => {
   const { regNo } = req.body;
+
+  if (!regNo) {
+    return res.status(400).json({ error: "Registration number is required" });
+  }
 
   try {
     const student = await pool.query(
@@ -79,9 +98,9 @@ app.post("/api/send-otp", async (req, res) => {
     );
 
     if (student.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "Voter not found or already voted." });
+      return res.status(404).json({
+        error: "Voter not found or already voted.",
+      });
     }
 
     const { phone_number: phoneNumber, name } = student.rows[0];
@@ -92,48 +111,96 @@ app.post("/api/send-otp", async (req, res) => {
       expires: Date.now() + 5 * 60 * 1000,
     });
 
-    console.log(`TEST OTP for ${name} (${regNo}): ${otp}`);
+    const message = `Your PANS Election verification code is ${otp}. It expires in 5 minutes.`;
 
-    const maskedPhone = phoneNumber.replace(
-      /(\d{3})(\d{5})(\d{2})/,
+    // ensure correct format (+234...)
+    const formattedNumber = phoneNumber.startsWith("0")
+      ? `+234${phoneNumber.slice(1)}`
+      : phoneNumber.startsWith("234")
+        ? `+${phoneNumber}`
+        : phoneNumber;
+
+    await axios.post(
+      "https://api.africastalking.com/version1/messaging",
+      new URLSearchParams({
+        username: process.env.AT_USERNAME,
+        to: formattedNumber,
+        message,
+      }),
+      {
+        headers: {
+          apiKey: process.env.AT_API_KEY,
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+      },
+    );
+
+    const maskedPhone = formattedNumber.replace(
+      /(\d{4})(\d+)(\d{2})/,
       "$1******$3",
     );
 
     res.json({
-      success: false,
+      success: true,
+      message: "OTP sent successfully",
       sentTo: maskedPhone,
-      testMode: true,
     });
   } catch (err) {
-    console.error("OTP Error:", err);
-    res.status(500).json({ error: "Failed to generate OTP" });
+    console.error("OTP Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Failed to send OTP" });
   }
 });
 
-// Verification Route
+// VERIFY OTP
 app.post("/api/verify-otp", async (req, res) => {
   const { regNo, userCode } = req.body;
+
+  if (!regNo || !userCode) {
+    return res.status(400).json({
+      error: "Registration number and OTP are required",
+    });
+  }
+
   try {
     const student = await pool.query(
       "SELECT phone_number FROM voters WHERE reg_no = $1",
       [regNo],
     );
-    if (student.rows.length === 0)
-      return res.status(404).json({ message: "Student not found" });
+
+    if (student.rows.length === 0) {
+      return res.status(404).json({ error: "Voter not found" });
+    }
 
     const phoneNumber = student.rows[0].phone_number;
     const record = otpStore.get(phoneNumber);
 
-    if (!record || record.code !== userCode || Date.now() > record.expires) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
+    if (!record) {
+      return res.status(400).json({ error: "OTP not found or expired" });
+    }
+
+    if (Date.now() > record.expires) {
+      otpStore.delete(phoneNumber);
+      return res.status(400).json({ error: "OTP expired" });
+    }
+
+    if (record.code !== userCode) {
+      return res.status(400).json({ error: "Invalid OTP" });
     }
 
     otpStore.delete(phoneNumber);
-    res.json({ success: true });
+
+    res.json({
+      success: true,
+      message: "OTP verified successfully",
+    });
   } catch (err) {
+    console.error("Verification error:", err);
     res.status(500).json({ error: "Verification error" });
   }
 });
+
+// SUBMIT VOTE
 app.post("/api/vote", async (req, res) => {
   const { regNo, candidateIds } = req.body;
 
@@ -175,7 +242,11 @@ app.post("/api/vote", async (req, res) => {
     ]);
 
     await client.query("COMMIT");
-    res.json({ success: true, message: "Vote submitted successfully" });
+
+    res.json({
+      success: true,
+      message: "Vote submitted successfully",
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Vote submission error:", err);
@@ -184,38 +255,28 @@ app.post("/api/vote", async (req, res) => {
     client.release();
   }
 });
+
+// ADMIN LOGIN
 app.post("/api/admin-login", (req, res) => {
   const { username, password } = req.body;
 
   if (username === ADMIN_USER && password === ADMIN_PASS) {
-    adminLoggedIn = true;
-    return res.json({ success: true });
+    const token = jwt.sign({ role: "admin", username }, JWT_SECRET, {
+      expiresIn: "6h",
+    });
+
+    return res.json({
+      success: true,
+      token,
+      message: "Admin login successful",
+    });
   }
 
   return res.status(401).json({ error: "Invalid admin credentials" });
 });
 
-// Serving UI
-// app.use(
-//   "/admin",
-//   protectAdmin,
-//   express.static(path.join(__dirname, "dist-admin")),
-// );
-// Serve built files
-app.use("/admin", express.static(path.join(__dirname, "dist-admin")));
-app.use(express.static(path.join(__dirname, "dist-voter")));
-
-// Admin SPA
-app.get(/^\/admin(?:\/.*)?$/, (req, res) => {
-  res.sendFile(path.join(__dirname, "dist-admin", "index.html"));
-});
-
-// Voter SPA
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, "dist-voter", "index.html"));
-});
-
-app.get("/api/results", async (req, res) => {
+// RESULTS
+app.get("/api/results", requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -235,11 +296,14 @@ app.get("/api/results", async (req, res) => {
   }
 });
 
-app.get("/api/voters", async (req, res) => {
+// VOTERS
+app.get("/api/voters", requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
         reg_no AS reg,
+        name,
+        phone_number,
         CASE 
           WHEN voted = true THEN 'Voted'
           ELSE 'Not Voted'
@@ -254,18 +318,26 @@ app.get("/api/voters", async (req, res) => {
     res.status(500).json({ error: "Failed to load voters" });
   }
 });
-const PORT = process.env.PORT || 8000;
 
+// FRONTEND SERVING - ONLY USED AFTER BUILD
+app.use("/admin", express.static(path.join(__dirname, "dist-admin")));
+app.use(express.static(path.join(__dirname, "dist-voter")));
+
+app.get(/^\/admin(?:\/.*)?$/, (req, res) => {
+  res.sendFile(path.join(__dirname, "dist-admin", "index.html"));
+});
+
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "dist-voter", "index.html"));
+});
+
+// START SERVER
 const server = app.listen(PORT, () => {
-  console.log(`Election System live on port ${PORT}`);
+  console.log(`Election backend running on port ${PORT}`);
 });
 
 server.on("error", (err) => {
   console.error("SERVER ERROR:", err);
-});
-
-process.on("exit", (code) => {
-  console.log("PROCESS EXITED WITH CODE:", code);
 });
 
 process.on("uncaughtException", (err) => {

@@ -14,6 +14,7 @@ const Login = () => {
   const [maskedPhone, setMaskedPhone] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isTestMode, setIsTestMode] = useState(false);
+  const API_BASE = "http://localhost:8000";
 
   const handleSendOTP = async () => {
     setErrorMessage("");

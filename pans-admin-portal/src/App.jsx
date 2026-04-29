@@ -5,8 +5,8 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin.jsx"));
 const Dashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
 const ProtectedAdmin = ({ children }) => {
-  const adminLoggedIn = localStorage.getItem("adminLoggedIn");
-  return adminLoggedIn === "true" ? children : <Navigate to="/" replace />;
+  const adminToken = localStorage.getItem("adminToken");
+  return adminToken ? children : <Navigate to="/" replace />;
 };
 
 function App() {

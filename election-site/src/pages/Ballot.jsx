@@ -17,7 +17,7 @@ const Ballot = () => {
         {
           id: 1,
           name: "Peter Obi",
-          slogan: "Labor Party",
+          slogan: "Labour Party",
           image:
             "https://upload.wikimedia.org/wikipedia/commons/b/b3/Peter_Obi_Official_Portrait.jpg",
         },
@@ -45,41 +45,43 @@ const Ballot = () => {
           id: 4,
           name: "Season One",
           image:
-            "https://m.media-amazon.com/images/M/MV5BYWE3MDVkN2EtNjQ5MS00ZDQ4LTliNzYtMjc2YWMzMDEwMTA3XkEyXkFqcGdeQXVyMTEyMjM2NDc2._V1_.jpg",
+            "https://image.tmdb.org/t/p/w500/6KErczPBROQty7QoIsaa6wJYXZi.jpg",
         },
         {
           id: 5,
           name: "Season Two",
           image:
-            "https://m.media-amazon.com/images/M/MV5BN2E1OTkyYzYtODkyOC00OTUyLTkxN2EtMmU1OTM4MjQxYWEzXkEyXkFqcGdeQXVyMTEyMjM2NDc2._V1_.jpg",
+            "https://image.tmdb.org/t/p/w500/5Hc8wQvW3zF1t0iAFn6Y2xq6r1C.jpg",
         },
         {
           id: 6,
           name: "Season Three",
           image:
-            "https://m.media-amazon.com/images/M/MV5BNmU2MjI2ZWMtOTYwZi00OTNhLWE0NjctYTVlMTA0MTYyN2FkXkEyXkFqcGdeQXVyMTEyMjM2NDc2._V1_.jpg",
+            "https://image.tmdb.org/t/p/w500/9O1Iy9od7l0JzG6HC8K3opgDdBr.jpg",
         },
       ],
     },
     {
-      office: "DIDDY SENTENCE",
-      question: "How long does Diddy deserve to serve time in Prison?",
+      office: "GOAT DEBATE",
+      question: "Who is the current GOAT?",
       candidates: [
         {
           id: 7,
-          name: "4 Years",
-          image: "https://cdn-icons-png.flaticon.com/512/3233/3233515.png",
+          name: "Michael Olise",
+          image:
+            "https://upload.wikimedia.org/wikipedia/commons/0/0c/Michael_Olise_2023.jpg",
         },
         {
           id: 8,
-          name: "15 Years",
-          image: "https://cdn-icons-png.flaticon.com/512/3233/3233515.png",
+          name: "Desiré Doué",
+          image:
+            "https://upload.wikimedia.org/wikipedia/commons/3/3e/Desire_Doue_2023.jpg",
         },
         {
           id: 9,
-          name: "Life Imprisonment",
+          name: "Lamine Yamal",
           image:
-            "https://upload.wikimedia.org/wikipedia/commons/d/de/Sean_Combs_2010.jpg",
+            "https://upload.wikimedia.org/wikipedia/commons/5/5c/Lamine_Yamal_2023.jpg",
         },
       ],
     },

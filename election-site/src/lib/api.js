@@ -1,9 +1,13 @@
 async function request(path, options = {}) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+  const voterToken = sessionStorage.getItem("pansVoterToken");
+  const adminToken = sessionStorage.getItem("pansAdminToken");
+  const authorization = options.authorization || voterToken || adminToken || "";
   const response = await fetch(`${baseUrl}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
       ...(options.headers || {}),
     },
     ...options,

@@ -46,7 +46,10 @@ export default function Admin() {
     setMessage("");
     try {
       setLoading(true);
-      await api.adminLogin(password);
+      const data = await api.adminLogin(password);
+      if (data.token) {
+        sessionStorage.setItem("pansAdminToken", data.token);
+      }
       setAuthed(true);
       await loadAdminData();
     } catch (err) {
@@ -80,6 +83,7 @@ export default function Admin() {
         setAuthed(true);
         await loadAdminData();
       } catch {
+        sessionStorage.removeItem("pansAdminToken");
         setAuthed(false);
       }
     }

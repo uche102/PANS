@@ -25,6 +25,7 @@ export default function Ballot() {
         setPosts(election.posts);
       } catch {
         sessionStorage.removeItem("pansVoter");
+        sessionStorage.removeItem("pansVoterToken");
         navigate("/", { replace: true });
       } finally {
         setLoading(false);
@@ -61,6 +62,7 @@ export default function Ballot() {
 
   function logout() {
     sessionStorage.removeItem("pansVoter");
+    sessionStorage.removeItem("pansVoterToken");
     navigate("/");
   }
 

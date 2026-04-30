@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getCookie, json, setCookie } from "./http.js";
+import { getBearerToken, getCookie, json, setCookie } from "./http.js";
 
 const VOTER_COOKIE = "pans_voter";
 const ADMIN_COOKIE = "pans_admin";
@@ -45,6 +45,7 @@ export function createVoterSession(res, voter) {
     secret,
   );
   setCookie(res, VOTER_COOKIE, token, 60 * 60 * 6);
+  return token;
 }
 
 export function createAdminSession(res) {
@@ -54,11 +55,12 @@ export function createAdminSession(res) {
     secret,
   );
   setCookie(res, ADMIN_COOKIE, token, 60 * 60 * 8);
+  return token;
 }
 
 export function requireVoter(req, res) {
   const voter = verifyToken(
-    getCookie(req, VOTER_COOKIE),
+    getBearerToken(req) || getCookie(req, VOTER_COOKIE),
     process.env.VOTER_SESSION_SECRET,
   );
   if (!voter) {
@@ -70,7 +72,7 @@ export function requireVoter(req, res) {
 
 export function requireAdmin(req, res) {
   const admin = verifyToken(
-    getCookie(req, ADMIN_COOKIE),
+    getBearerToken(req) || getCookie(req, ADMIN_COOKIE),
     process.env.ADMIN_SESSION_SECRET,
   );
   if (!admin || admin.role !== "admin") {

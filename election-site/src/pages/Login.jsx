@@ -47,6 +47,9 @@ export default function Login() {
       setLoading(true);
       const data = await api.verifyOtp(regNo.trim().toUpperCase(), otp);
       sessionStorage.setItem("pansVoter", JSON.stringify(data.voter));
+      if (data.token) {
+        sessionStorage.setItem("pansVoterToken", data.token);
+      }
       navigate("/ballot");
     } catch (err) {
       setError(err.message);

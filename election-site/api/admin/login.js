@@ -12,6 +12,6 @@ export default async function handler(req, res) {
     return json(res, 401, { error: "Invalid admin password." });
   }
 
-  createAdminSession(res);
-  return json(res, 200, { message: "Admin login successful." });
+  const token = createAdminSession(res);
+  return json(res, 200, { message: "Admin login successful.", token });
 }

@@ -21,13 +21,14 @@ export default async function handler(req, res) {
     const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
     if (!voter) return json(res, 404, { error: "Voter not found." });
 
-    createVoterSession(res, voter);
+    const token = createVoterSession(res, voter);
     return json(res, 200, {
       voter: {
         reg_no: voter.reg_no,
         name: voter.name,
         level: voter.level,
       },
+      token,
     });
   } catch (error) {
     return json(res, 500, { error: error.message || "OTP verification failed." });

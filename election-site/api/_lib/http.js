@@ -36,6 +36,12 @@ export function getCookie(req, name) {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
 }
 
+export function getBearerToken(req) {
+  const header = req.headers.authorization || "";
+  if (!header.toLowerCase().startsWith("bearer ")) return "";
+  return header.slice(7).trim();
+}
+
 export function setCookie(res, name, value, maxAgeSeconds) {
   const sameSite = process.env.COOKIE_SAMESITE || "Lax";
   const cookie = [

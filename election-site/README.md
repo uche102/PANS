@@ -83,3 +83,15 @@ The Render backend uses `server.js` and the same `/api/*` routes as local/Vercel
 - Start command: `npm start`
 - Required backend env vars: all Supabase, SMTP, admin/session, `CORS_ORIGIN`, and `COOKIE_SAMESITE=None`.
 - Frontend env var on Vercel: `VITE_API_BASE_URL=<render-backend-url>`.
+
+## Admin CSV Import
+
+The admin page can import a CSV with these columns:
+
+- `post`
+- `name`
+- `tagline`
+- `image_url`
+- `display_order`
+
+Use the `Download Template` button on the admin page to get a starter file.

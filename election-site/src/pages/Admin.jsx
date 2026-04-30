@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import Papa from "papaparse";
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
 
@@ -39,7 +40,9 @@ export default function Admin() {
   const [candidateForm, setCandidateForm] = useState(emptyCandidate([]));
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [importName, setImportName] = useState("");
   const chartRefs = useRef({});
+  const fileInputRef = useRef(null);
 
   async function login(event) {
     event.preventDefault();
@@ -159,6 +162,75 @@ export default function Admin() {
     }
   }
 
+  function handleTemplateDownload() {
+    const rows = [
+      {
+        post: "Who will be the next president 2027",
+        name: "Bola-Ahmed Tinubu",
+        tagline: "Example tagline",
+        image_url: "https://example.com/image.jpg",
+        display_order: 1,
+      },
+    ];
+    const csv = Papa.unparse(rows, { header: true });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "candidate-import-template.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function openImport() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleImportFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setMessage("");
+    setImportName(file.name);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const rows = results.data
+            .map((row) => ({
+              post: String(row.post || row.title || "").trim(),
+              name: String(row.name || "").trim(),
+              tagline: String(row.tagline || "").trim(),
+              image_url: String(row.image_url || row.image || "").trim(),
+              display_order: Number(row.display_order || row.order || 0),
+              post_order: Number(row.post_order || row.group_order || 0),
+            }))
+            .filter((row) => row.post && row.name);
+
+          if (!rows.length) {
+            setMessage("The file does not contain any valid post/candidate rows.");
+            return;
+          }
+
+          setLoading(true);
+          await api.resetElection(rows);
+          await loadAdminData();
+          setMessage(`Imported ${rows.length} candidate rows from ${file.name}.`);
+        } catch (err) {
+          setMessage(err.message);
+        } finally {
+          setLoading(false);
+          event.target.value = "";
+        }
+      },
+      error: (err) => {
+        setMessage(err.message);
+        event.target.value = "";
+      },
+    });
+  }
+
   function downloadChart(postId, title) {
     const container = chartRefs.current[postId];
     const svg = container?.querySelector("svg");
@@ -244,10 +316,26 @@ export default function Admin() {
             <section className="panel">
               <div className="panel-head">
                 <h2>Posts</h2>
-                <button className="mini-button danger" type="button" onClick={resetElection}>
-                  Reset Election
-                </button>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button className="mini-button" type="button" onClick={handleTemplateDownload}>
+                    Download Template
+                  </button>
+                  <button className="mini-button" type="button" onClick={openImport}>
+                    Import CSV
+                  </button>
+                  <button className="mini-button danger" type="button" onClick={resetElection}>
+                    Reset Election
+                  </button>
+                </div>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                onChange={handleImportFile}
+              />
+              {importName && <p className="admin-message">Selected file: {importName}</p>}
               <form className="admin-form" onSubmit={savePost}>
                 <input
                   value={postForm.title}

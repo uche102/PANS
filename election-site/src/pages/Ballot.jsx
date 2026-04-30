@@ -15,14 +15,31 @@ export default function Ballot() {
 
   useEffect(() => {
     async function load() {
+      const storedVoter = sessionStorage.getItem("pansVoter");
+      const hasToken = sessionStorage.getItem("pansVoterToken");
+
+      if (!storedVoter || !hasToken) {
+        navigate("/", { replace: true });
+        return;
+      }
+
       try {
-        const [me, election] = await Promise.all([api.me(), api.election()]);
-        if (me.hasVoted) {
+        const [meResult, election] = await Promise.allSettled([api.me(), api.election()]);
+        const me = meResult.status === "fulfilled" ? meResult.value : null;
+
+        if (me?.hasVoted) {
           navigate("/success", { replace: true });
           return;
         }
-        setVoter(me.voter);
-        setPosts(election.posts);
+
+        setVoter(
+          me?.voter ? me.voter : JSON.parse(storedVoter),
+        );
+        if (election.status === "fulfilled") {
+          setPosts(election.value.posts);
+        } else {
+          throw election.reason;
+        }
       } catch {
         sessionStorage.removeItem("pansVoter");
         sessionStorage.removeItem("pansVoterToken");

@@ -3,15 +3,17 @@ async function request(path, options = {}) {
   const voterToken = sessionStorage.getItem("pansVoterToken");
   const adminToken = sessionStorage.getItem("pansAdminToken");
   const authorization = options.authorization || voterToken || adminToken || "";
+  const { headers: providedHeaders, body, authorization: _ignoredAuthorization, ...rest } = options;
+  const headers = {
+    "Content-Type": "application/json",
+    ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
+    ...(providedHeaders || {}),
+  };
   const response = await fetch(`${baseUrl}${path}`, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    ...rest,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   });
 
   const data = await response.json().catch(() => ({}));

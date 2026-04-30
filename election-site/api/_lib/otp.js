@@ -66,7 +66,7 @@ export async function verifyOtp(regNo, code) {
 }
 
 export async function sendOtpEmail(voter, code) {
-  if (process.env.RESEND_API_KEY) {
+  if (process.env.RESEND_API_KEY && process.env.EMAIL_PROVIDER !== "brevo") {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {

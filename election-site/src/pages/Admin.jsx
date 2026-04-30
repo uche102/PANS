@@ -132,6 +132,33 @@ export default function Admin() {
     await loadAdminData();
   }
 
+  async function resetElection() {
+    if (
+      !window.confirm(
+        "Reset the election setup? This will remove all posts, candidates, and votes.",
+      )
+    ) {
+      return;
+    }
+    setMessage("");
+    try {
+      setLoading(true);
+      await api.resetElection();
+      setPosts([]);
+      setCandidates([]);
+      setResults([]);
+      setVoters([]);
+      setPostForm({ id: "", title: "", display_order: 0, is_active: true });
+      setCandidateForm(emptyCandidate([]));
+      await loadAdminData();
+      setMessage("Election setup reset.");
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function downloadChart(postId, title) {
     const container = chartRefs.current[postId];
     const svg = container?.querySelector("svg");
@@ -215,7 +242,12 @@ export default function Admin() {
         {activeTab === "setup" && (
           <div className="admin-grid">
             <section className="panel">
-              <h2>Posts</h2>
+              <div className="panel-head">
+                <h2>Posts</h2>
+                <button className="mini-button danger" type="button" onClick={resetElection}>
+                  Reset Election
+                </button>
+              </div>
               <form className="admin-form" onSubmit={savePost}>
                 <input
                   value={postForm.title}

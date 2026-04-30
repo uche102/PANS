@@ -4,6 +4,7 @@ import express from "express";
 import adminCandidates from "./api/admin/candidates.js";
 import adminLogin from "./api/admin/login.js";
 import adminPosts from "./api/admin/posts.js";
+import adminResetElection from "./api/admin/reset-election.js";
 import adminResults from "./api/admin/results.js";
 import adminSession from "./api/admin/session.js";
 import votersVoted from "./api/admin/voters-voted.js";
@@ -48,6 +49,7 @@ route("/api/admin/login", adminLogin);
 route("/api/admin/session", adminSession);
 route("/api/admin/posts", adminPosts);
 route("/api/admin/candidates", adminCandidates);
+route("/api/admin/reset-election", adminResetElection);
 route("/api/admin/voters-voted", votersVoted);
 route("/api/admin/results", adminResults);
 

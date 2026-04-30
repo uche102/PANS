@@ -32,6 +32,7 @@ export const api = {
   adminLogin: (password) => request("/api/admin/login", { method: "POST", body: { password } }),
   adminSession: () => request("/api/admin/session"),
   adminPosts: () => request("/api/admin/posts"),
+  resetElection: () => request("/api/admin/reset-election", { method: "POST" }),
   savePost: (post) =>
     request("/api/admin/posts", { method: post.id ? "PUT" : "POST", body: post }),
   deletePost: (id) => request("/api/admin/posts", { method: "DELETE", body: { id } }),

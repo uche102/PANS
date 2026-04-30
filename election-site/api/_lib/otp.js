@@ -70,13 +70,16 @@ export async function sendOtpEmail(voter, code) {
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),
     secure: String(process.env.SMTP_PORT) === "465",
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   });
 
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to: voter.email,
     subject: "PANS UniZik Election OTP",
@@ -91,6 +94,16 @@ export async function sendOtpEmail(voter, code) {
       </div>
     `,
   });
+
+  console.log("OTP email accepted by SMTP provider", {
+    to: voter.email,
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
+  });
+
+  return info;
 }
 
 export function maskEmail(email) {

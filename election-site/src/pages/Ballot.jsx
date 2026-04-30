@@ -1,229 +1,139 @@
-import React, { useState } from "react";
-import { ArrowLeft, CheckCircle, User, Award } from "lucide-react";
+import { CheckCircle, LogOut, UserRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import welcome from "../assets/welcome.jpeg";
+import { api } from "../lib/api";
 
-const Ballot = () => {
+export default function Ballot() {
   const navigate = useNavigate();
+  const [voter, setVoter] = useState(null);
+  const [posts, setPosts] = useState([]);
   const [selections, setSelections] = useState({});
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const voterRegNo = localStorage.getItem("voterRegNo");
+  const [error, setError] = useState("");
 
-  const electionData = [
-    {
-      office: "2027 ELECTION",
-      question: "Who do you think will win the 2027 elections?",
-      candidates: [
-        {
-          id: 1,
-          name: "Peter Obi",
-          slogan: "Labour Party",
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/b/b3/Peter_Obi_Official_Portrait.jpg",
-        },
-        {
-          id: 2,
-          name: "Bola Ahmed Tinubu",
-          slogan: "APC",
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/2/22/Bola_Tinubu_portrait.jpg",
-        },
-        {
-          id: 3,
-          name: "Atiku Abubakar",
-          slogan: "PDP",
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/1/1b/Atiku_Abubakar-2010.jpg",
-        },
-      ],
-    },
-    {
-      office: "SQUID GAME",
-      question: "What Season of Squid Game was the best?",
-      candidates: [
-        {
-          id: 4,
-          name: "Season One",
-          image:
-            "https://image.tmdb.org/t/p/w500/6KErczPBROQty7QoIsaa6wJYXZi.jpg",
-        },
-        {
-          id: 5,
-          name: "Season Two",
-          image:
-            "https://image.tmdb.org/t/p/w500/5Hc8wQvW3zF1t0iAFn6Y2xq6r1C.jpg",
-        },
-        {
-          id: 6,
-          name: "Season Three",
-          image:
-            "https://image.tmdb.org/t/p/w500/9O1Iy9od7l0JzG6HC8K3opgDdBr.jpg",
-        },
-      ],
-    },
-    {
-      office: "GOAT DEBATE",
-      question: "Who is the current GOAT?",
-      candidates: [
-        {
-          id: 7,
-          name: "Michael Olise",
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/0/0c/Michael_Olise_2023.jpg",
-        },
-        {
-          id: 8,
-          name: "Desiré Doué",
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/3/3e/Desire_Doue_2023.jpg",
-        },
-        {
-          id: 9,
-          name: "Lamine Yamal",
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/5/5c/Lamine_Yamal_2023.jpg",
-        },
-      ],
-    },
-  ];
-
-  const handleSelect = (office, candidateId) => {
-    setSelections({ ...selections, [office]: candidateId });
-  };
-
-  const handleSubmitVotes = async () => {
-    const totalOffices = electionData.length;
-    const selectedCount = Object.keys(selections).length;
-
-    if (selectedCount < totalOffices) {
-      alert(
-        `Please vote for all offices! You have missed ${totalOffices - selectedCount} positions.`,
-      );
-      return;
+  useEffect(() => {
+    async function load() {
+      try {
+        const [me, election] = await Promise.all([api.me(), api.election()]);
+        if (me.hasVoted) {
+          navigate("/success", { replace: true });
+          return;
+        }
+        setVoter(me.voter);
+        setPosts(election.posts);
+      } catch {
+        sessionStorage.removeItem("pansVoter");
+        navigate("/", { replace: true });
+      } finally {
+        setLoading(false);
+      }
     }
+    load();
+  }, [navigate]);
 
-    if (!voterRegNo) {
-      alert("Session expired. Please verify your OTP again.");
-      navigate("/");
+  const selectedCount = Object.keys(selections).length;
+  const canSubmit = posts.length > 0 && selectedCount === posts.length;
+
+  const voterLabel = useMemo(() => {
+    if (!voter) return "";
+    return [voter.name, voter.reg_no].filter(Boolean).join(" · ");
+  }, [voter]);
+
+  async function submitVote() {
+    setError("");
+    if (!canSubmit) {
+      setError("Select one candidate for every post before submitting.");
       return;
     }
 
     try {
       setSubmitting(true);
-
-      const response = await fetch("http://localhost:8000/api/vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          regNo: voterRegNo,
-          candidateIds: Object.values(selections),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        navigate("/success");
-      } else {
-        alert(result.error || result.message || "Failed to submit vote.");
-      }
+      await api.vote(selections);
+      navigate("/success");
     } catch (err) {
-      console.error("Connection Error:", err);
-      alert(
-        "Backend server is not reachable. Ensure 'node server.js' is running.",
-      );
+      setError(err.message);
     } finally {
       setSubmitting(false);
     }
-  };
+  }
+
+  function logout() {
+    sessionStorage.removeItem("pansVoter");
+    navigate("/");
+  }
+
+  if (loading) {
+    return <div className="loading-screen">Loading ballot...</div>;
+  }
 
   return (
-    <div
-      className="ballot-page"
-      style={{
-        backgroundImage: `url(${welcome})`,
-        minHeight: "100vh",
-        backgroundAttachment: "fixed",
-      }}
-    >
-      <header className="ballot-header">
-        <button onClick={() => navigate("/")} className="exit-button">
-          <ArrowLeft size={18} /> LOGOUT
-        </button>
-        <div className="header-info">
-          <h1>PANS UNIZIK E-BALLOT</h1>
-          <p>2026 GENERAL ELECTIONS</p>
-        </div>
-      </header>
+    <div className="app-page" style={{ backgroundImage: `url(${welcome})` }}>
+      <div className="app-shell">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">PANS UniZik</p>
+            <h1>Election Ballot</h1>
+            <p>{voterLabel}</p>
+          </div>
+          <button className="icon-button" onClick={logout} title="Logout">
+            <LogOut size={18} />
+          </button>
+        </header>
 
-      <main className="ballot-container">
-        <div className="instruction-card">
-          <CheckCircle size={20} color="var(--accent)" />
-          <p>Review the candidates and select one for each executive office.</p>
+        <div className="status-row">
+          <CheckCircle size={18} />
+          <span>
+            {selectedCount} of {posts.length} posts selected
+          </span>
         </div>
 
-        {electionData.map((section) => (
-          <section key={section.office} className="office-section">
-            <h2 className="office-title">
-              <Award size={20} /> {section.office}
-              <p className="poll-question">{section.question}</p>
-            </h2>
-            <div className="candidates-grid">
-              {section.candidates.map((candidate) => (
-                <div
-                  key={candidate.id}
-                  className={`candidate-card ${
-                    selections[section.office] === candidate.id
-                      ? "selected"
-                      : ""
-                  }`}
-                  onClick={() => handleSelect(section.office, candidate.id)}
-                >
-                  <div className="candidate-photo">
-                    {candidate.image ? (
-                      <img
-                        src={candidate.image}
-                        alt={candidate.name}
-                        style={{
-                          width: "100px",
-                          height: "100px",
-                          borderRadius: "50%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      <div className="photo-placeholder">
-                        <User size={40} />
+        {posts.length === 0 && (
+          <section className="empty-state">No active election posts have been added yet.</section>
+        )}
+
+        <div className="post-list">
+          {posts.map((post) => (
+            <section className="post-section" key={post.id}>
+              <h2>{post.title}</h2>
+              <div className="candidate-grid">
+                {post.candidates.map((candidate) => {
+                  const selected = selections[post.id] === candidate.id;
+                  return (
+                    <button
+                      type="button"
+                      key={candidate.id}
+                      className={`candidate-card ${selected ? "selected" : ""}`}
+                      onClick={() =>
+                        setSelections((current) => ({ ...current, [post.id]: candidate.id }))
+                      }
+                    >
+                      <div className="candidate-avatar">
+                        {candidate.image_url ? (
+                          <img src={candidate.image_url} alt={candidate.name} />
+                        ) : (
+                          <UserRound size={34} />
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="candidate-info">
-                    <h3>{candidate.name}</h3>
-                    {candidate.slogan && <small>{candidate.slogan}</small>}
-                  </div>
-                  <div className="selection-indicator">
-                    {selections[section.office] === candidate.id
-                      ? "SELECTED"
-                      : "TAP TO SELECT"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
+                      <strong>{candidate.name}</strong>
+                      {candidate.tagline && <span>{candidate.tagline}</span>}
+                      <small>{selected ? "Selected" : "Tap to select"}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
 
-        <div className="submit-section">
-          <button
-            className="primary-button finalize-btn"
-            onClick={handleSubmitVotes}
-            disabled={submitting}
-          >
-            {submitting ? "SUBMITTING..." : "SUBMIT ALL VOTES"}
+        {error && <p className="error-text">{error}</p>}
+        <div className="sticky-action">
+          <button className="primary-button" disabled={!canSubmit || submitting} onClick={submitVote}>
+            {submitting ? "Submitting..." : "Submit Ballot"}
           </button>
         </div>
-      </main>
+      </div>
     </div>
   );
-};
-
-export default Ballot;
+}

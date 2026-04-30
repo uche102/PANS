@@ -5,14 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server.js",
+    "start": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
+    "check:smtp": "node scripts/check-smtp.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "autoprefixer": "^10.4.27",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "lucide-react": "^1.8.0",
+    "nodemailer": "^7.0.10",
     "postcss": "^8.5.9",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

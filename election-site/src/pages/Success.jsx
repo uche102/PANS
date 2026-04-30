@@ -1,61 +1,26 @@
-import React, { useState } from "react";
-import { CheckCircle, Home, Download } from "lucide-react";
+import { CheckCircle, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import welcome from "../assets/welcome.jpeg";
 
-const Success = () => {
+export default function Success() {
   const navigate = useNavigate();
-  const [voteRef] = useState(
-    () => "PANS-" + Math.random().toString(36).slice(2, 11).toUpperCase(),
-  );
+
+  function finish() {
+    sessionStorage.removeItem("pansVoter");
+    navigate("/");
+  }
 
   return (
-    <div
-      className="success-page"
-      style={{ backgroundImage: `url(${welcome})` }}
-    >
-      <div className="success-overlay">
-        <div className="success-card">
-          <div className="success-icon-wrapper">
-            <CheckCircle size={60} color="#10b981" strokeWidth={3} />
-          </div>
-
-          <h1 className="success-title">VOTE SUBMITTED</h1>
-          <p className="success-subtitle">
-            Thank you for participating in the 2026 PANS UNIZIK Elections.
-          </p>
-
-          <div className="receipt-section">
-            <div className="receipt-row">
-              <span>Status</span>
-              <span className="status-pill">Successful</span>
-            </div>
-            <div className="receipt-row">
-              <span>Reference</span>
-              <span className="ref-text">{voteRef}</span>
-            </div>
-            <div className="receipt-row">
-              <span>Timestamp</span>
-              <span>{new Date().toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="success-actions">
-            <button className="primary-button" onClick={() => navigate("/")}>
-              <Home size={18} /> FINISH & LOGOUT
-            </button>
-            <button className="secondary-button" onClick={() => window.print()}>
-              <Download size={18} /> PRINT RECEIPT
-            </button>
-          </div>
-
-          <p className="security-footer">
-            Your vote has been recorded successfully for this test election.
-          </p>
-        </div>
-      </div>
+    <div className="app-page centered" style={{ backgroundImage: `url(${welcome})` }}>
+      <section className="success-panel">
+        <CheckCircle size={64} />
+        <h1>Vote Submitted</h1>
+        <p>Your ballot has been recorded for the PANS UniZik election.</p>
+        <button className="primary-button" onClick={finish}>
+          <Home size={18} />
+          Finish
+        </button>
+      </section>
     </div>
   );
-};
-
-export default Success;
+}

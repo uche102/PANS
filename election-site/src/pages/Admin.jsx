@@ -1,0 +1,346 @@
+import {
+  Download,
+  Lock,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+  Users,
+  Vote,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import welcome from "../assets/welcome.jpeg";
+import { api } from "../lib/api";
+
+const COLORS = ["#0f766e", "#2563eb", "#c2410c", "#7c3aed", "#be123c", "#15803d"];
+
+function emptyCandidate(posts) {
+  return {
+    id: "",
+    post_id: posts[0]?.id || "",
+    name: "",
+    tagline: "",
+    image_url: "",
+    display_order: 0,
+    is_active: true,
+  };
+}
+
+export default function Admin() {
+  const [password, setPassword] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [activeTab, setActiveTab] = useState("setup");
+  const [posts, setPosts] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [voters, setVoters] = useState([]);
+  const [results, setResults] = useState([]);
+  const [postForm, setPostForm] = useState({ id: "", title: "", display_order: 0, is_active: true });
+  const [candidateForm, setCandidateForm] = useState(emptyCandidate([]));
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const chartRefs = useRef({});
+
+  async function login(event) {
+    event.preventDefault();
+    setMessage("");
+    try {
+      setLoading(true);
+      await api.adminLogin(password);
+      setAuthed(true);
+      await loadAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadAdminData() {
+    const [postData, candidateData, voterData, resultData] = await Promise.all([
+      api.adminPosts(),
+      api.adminCandidates(),
+      api.votersVoted(),
+      api.results(),
+    ]);
+    setPosts(postData.posts);
+    setCandidates(candidateData.candidates);
+    setVoters(voterData.voters);
+    setResults(resultData.posts);
+    setCandidateForm((current) => ({
+      ...current,
+      post_id: current.post_id || postData.posts[0]?.id || "",
+    }));
+  }
+
+  useEffect(() => {
+    async function check() {
+      try {
+        await api.adminSession();
+        setAuthed(true);
+        await loadAdminData();
+      } catch {
+        setAuthed(false);
+      }
+    }
+    check();
+  }, []);
+
+  async function savePost(event) {
+    event.preventDefault();
+    setMessage("");
+    try {
+      setLoading(true);
+      await api.savePost(postForm);
+      setPostForm({ id: "", title: "", display_order: 0, is_active: true });
+      await loadAdminData();
+      setMessage("Post saved.");
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveCandidate(event) {
+    event.preventDefault();
+    setMessage("");
+    try {
+      setLoading(true);
+      await api.saveCandidate(candidateForm);
+      setCandidateForm(emptyCandidate(posts));
+      await loadAdminData();
+      setMessage("Candidate saved.");
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removePost(id) {
+    await api.deletePost(id);
+    await loadAdminData();
+  }
+
+  async function removeCandidate(id) {
+    await api.deleteCandidate(id);
+    await loadAdminData();
+  }
+
+  function downloadChart(postId, title) {
+    const container = chartRefs.current[postId];
+    const svg = container?.querySelector("svg");
+    if (!svg) return;
+    const source = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  const totalVotes = useMemo(
+    () =>
+      results.reduce(
+        (sum, post) => sum + post.candidates.reduce((inner, candidate) => inner + candidate.votes, 0),
+        0,
+      ),
+    [results],
+  );
+
+  if (!authed) {
+    return (
+      <div className="login-page" style={{ backgroundImage: `url(${welcome})` }}>
+        <div className="page-scrim">
+          <form className="login-panel compact" onSubmit={login}>
+            <Lock size={34} />
+            <h1>Admin</h1>
+            <p>PANS UniZik election control</p>
+            <label>
+              <span>Password</span>
+              <div className="field">
+                <Lock size={18} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Admin password"
+                />
+              </div>
+            </label>
+            {message && <p className="error-text">{message}</p>}
+            <button className="primary-button" disabled={loading}>
+              {loading ? "Checking..." : "Login"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-page" style={{ backgroundImage: `url(${welcome})` }}>
+      <div className="admin-shell">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">PANS UniZik</p>
+            <h1>Admin Dashboard</h1>
+            <p>{posts.length} posts · {candidates.length} candidates · {totalVotes} votes</p>
+          </div>
+          <button className="icon-button" onClick={loadAdminData} title="Refresh">
+            <RefreshCw size={18} />
+          </button>
+        </header>
+
+        <nav className="tabs">
+          <button className={activeTab === "setup" ? "active" : ""} onClick={() => setActiveTab("setup")}>
+            <Vote size={16} /> Setup
+          </button>
+          <button className={activeTab === "voters" ? "active" : ""} onClick={() => setActiveTab("voters")}>
+            <Users size={16} /> Voted
+          </button>
+          <button className={activeTab === "results" ? "active" : ""} onClick={() => setActiveTab("results")}>
+            <Download size={16} /> Results
+          </button>
+        </nav>
+
+        {message && <p className="admin-message">{message}</p>}
+
+        {activeTab === "setup" && (
+          <div className="admin-grid">
+            <section className="panel">
+              <h2>Posts</h2>
+              <form className="admin-form" onSubmit={savePost}>
+                <input
+                  value={postForm.title}
+                  onChange={(event) => setPostForm({ ...postForm, title: event.target.value })}
+                  placeholder="Post title"
+                />
+                <input
+                  type="number"
+                  value={postForm.display_order}
+                  onChange={(event) => setPostForm({ ...postForm, display_order: event.target.value })}
+                  placeholder="Order"
+                />
+                <button className="primary-button" disabled={loading}>
+                  <Save size={16} /> Save Post
+                </button>
+              </form>
+              <div className="table-list">
+                {posts.map((post) => (
+                  <div className="table-row" key={post.id}>
+                    <span>{post.title}</span>
+                    <div>
+                      <button className="mini-button" onClick={() => setPostForm(post)}>Edit</button>
+                      <button className="mini-button danger" onClick={() => removePost(post.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="panel">
+              <h2>Candidates</h2>
+              <form className="admin-form" onSubmit={saveCandidate}>
+                <select
+                  value={candidateForm.post_id}
+                  onChange={(event) => setCandidateForm({ ...candidateForm, post_id: event.target.value })}
+                >
+                  <option value="">Select post</option>
+                  {posts.map((post) => (
+                    <option value={post.id} key={post.id}>{post.title}</option>
+                  ))}
+                </select>
+                <input
+                  value={candidateForm.name}
+                  onChange={(event) => setCandidateForm({ ...candidateForm, name: event.target.value })}
+                  placeholder="Candidate name"
+                />
+                <input
+                  value={candidateForm.tagline}
+                  onChange={(event) => setCandidateForm({ ...candidateForm, tagline: event.target.value })}
+                  placeholder="Tagline or department"
+                />
+                <input
+                  value={candidateForm.image_url}
+                  onChange={(event) => setCandidateForm({ ...candidateForm, image_url: event.target.value })}
+                  placeholder="Image URL"
+                />
+                <button className="primary-button" disabled={loading}>
+                  <Plus size={16} /> Save Candidate
+                </button>
+              </form>
+              <div className="table-list">
+                {candidates.map((candidate) => (
+                  <div className="table-row" key={candidate.id}>
+                    <span>{candidate.name}</span>
+                    <div>
+                      <button className="mini-button" onClick={() => setCandidateForm(candidate)}>Edit</button>
+                      <button className="mini-button danger" onClick={() => removeCandidate(candidate.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeTab === "voters" && (
+          <section className="panel">
+            <h2>People Who Voted</h2>
+            <div className="voter-table">
+              {voters.map((voter) => (
+                <div className="voter-row" key={voter.reg_no}>
+                  <strong>{voter.name}</strong>
+                  <span>{voter.reg_no}</span>
+                  <span>{voter.email}</span>
+                  <span>{voter.voted_at ? new Date(voter.voted_at).toLocaleString() : ""}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {activeTab === "results" && (
+          <div className="results-grid">
+            {results.map((post) => (
+              <section className="panel" key={post.id}>
+                <div className="panel-head">
+                  <h2>{post.title}</h2>
+                  <button className="mini-button" onClick={() => downloadChart(post.id, post.title)}>
+                    <Download size={14} /> Download
+                  </button>
+                </div>
+                <div className="chart-box" ref={(node) => (chartRefs.current[post.id] = node)}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie
+                        data={post.candidates}
+                        dataKey="votes"
+                        nameKey="name"
+                        outerRadius={95}
+                        label
+                      >
+                        {post.candidates.map((candidate, index) => (
+                          <Cell key={candidate.id} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -63,6 +63,8 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`
+- `RESEND_API_KEY`
+- `RESEND_FROM`
 - `ADMIN_PASSWORD`
 - `ADMIN_SESSION_SECRET`
 - `VOTER_SESSION_SECRET`
@@ -71,7 +73,7 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 - `COOKIE_SAMESITE`
 - `VITE_API_BASE_URL`
 
-Do not expose the service-role key in frontend code. It is used only inside `/api`.
+Do not expose the service-role key or email API keys in frontend code. They are used only inside `/api`.
 
 ## Render Backend
 

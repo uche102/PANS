@@ -66,6 +66,48 @@ export async function verifyOtp(regNo, code) {
 }
 
 export async function sendOtpEmail(voter, code) {
+  if (process.env.RESEND_API_KEY) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM || "PANS UniZik Election <onboarding@resend.dev>",
+        to: [voter.email],
+        subject: "PANS UniZik Election OTP",
+        text: `Your PANS UniZik election login OTP is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.5">
+            <h2>PANS UniZik Election Login</h2>
+            <p>Hello ${voter.name || voter.reg_no},</p>
+            <p>Your login OTP is:</p>
+            <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
+            <p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>
+          </div>
+        `,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.message || "Resend email request failed.");
+    }
+
+    console.log("OTP email accepted by Resend", {
+      to: voter.email,
+      id: data.id,
+    });
+
+    return {
+      messageId: data.id,
+      accepted: [voter.email],
+      rejected: [],
+      response: "Accepted by Resend",
+    };
+  }
+
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),

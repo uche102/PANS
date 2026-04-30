@@ -1,7 +1,7 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
 import { verifyOtp } from "./_lib/otp.js";
 import { createVoterSession } from "./_lib/session.js";
-import { getSingle } from "./_lib/supabase.js";
+import { getSingle, supabaseRequest } from "./_lib/supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res);
@@ -21,7 +21,21 @@ export default async function handler(req, res) {
     const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
     if (!voter) return json(res, 404, { error: "Voter not found." });
 
+    const vote = await getSingle("votes", { reg_no: `eq.${regNoValue}` });
+    if (vote) {
+      return json(res, 409, { error: "This voter has already voted." });
+    }
+
+    if (voter.ballot_submitted_at) {
+      return json(res, 409, { error: "This voter has already submitted a ballot." });
+    }
+
     const token = createVoterSession(res, voter);
+    await supabaseRequest("voters", {
+      method: "PATCH",
+      query: { reg_no: `eq.${regNoValue}` },
+      body: { otp_verified_at: new Date().toISOString() },
+    }).catch(() => {});
     return json(res, 200, {
       voter: {
         reg_no: voter.reg_no,

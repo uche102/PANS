@@ -1,6 +1,6 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
 import { createOtpCode, maskEmail, sendOtpEmail, storeOtp } from "./_lib/otp.js";
-import { getSingle } from "./_lib/supabase.js";
+import { getSingle, supabaseRequest } from "./_lib/supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res);
@@ -14,26 +14,77 @@ export default async function handler(req, res) {
     if (!voter) return json(res, 404, { error: "Registration number was not found." });
     if (!voter.email) return json(res, 400, { error: "No email is attached to this voter." });
 
-    const code = createOtpCode();
-    await storeOtp(voter.reg_no, code);
+    const vote = await getSingle("votes", { reg_no: `eq.${regNoValue}` });
+    if (vote) {
+      return json(res, 409, { error: "This voter has already voted." });
+    }
 
-    if (process.env.ALLOW_DEV_OTP === "true" && process.env.NODE_ENV !== "production") {
-      return json(res, 200, {
-        message: "OTP generated in local test mode.",
-        sentTo: maskEmail(voter.email),
-        testMode: true,
-        devOtp: code,
+    if (voter.ballot_submitted_at) {
+      return json(res, 409, { error: "This voter has already submitted a ballot." });
+    }
+    if (voter.otp_claimed_at) {
+      return json(res, 409, {
+        error: `An OTP has already been sent to ${maskEmail(voter.email)} for this registration number.`,
       });
     }
 
-    const info = await sendOtpEmail(voter, code);
-
-    return json(res, 200, {
-      message: "OTP sent.",
-      sentTo: maskEmail(voter.email),
-      messageId: info.messageId,
+    const claimedAt = new Date().toISOString();
+    const claimed = await supabaseRequest("voters", {
+      method: "PATCH",
+      query: {
+        reg_no: `eq.${regNoValue}`,
+        otp_claimed_at: "is.null",
+        ballot_submitted_at: "is.null",
+      },
+      body: { otp_claimed_at: claimedAt },
     });
+
+    if (!claimed.length) {
+      const current = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
+      if (current?.ballot_submitted_at) {
+        return json(res, 409, { error: "This voter has already submitted a ballot." });
+      }
+      return json(res, 409, {
+        error: `An OTP has already been sent to ${maskEmail(voter.email)} for this registration number.`,
+      });
+    }
+
+    const code = createOtpCode();
+    try {
+      await storeOtp(voter.reg_no, code);
+
+      if (process.env.ALLOW_DEV_OTP === "true" && process.env.NODE_ENV !== "production") {
+        return json(res, 200, {
+          message: "OTP generated in local test mode.",
+          sentTo: maskEmail(voter.email),
+          testMode: true,
+          devOtp: code,
+        });
+      }
+
+      const info = await sendOtpEmail(voter, code);
+
+      return json(res, 200, {
+        message: "OTP sent.",
+        sentTo: maskEmail(voter.email),
+        messageId: info.messageId,
+      });
+    } catch (error) {
+      await supabaseRequest("voters", {
+        method: "PATCH",
+        query: {
+          reg_no: `eq.${regNoValue}`,
+          otp_claimed_at: `eq.${claimedAt}`,
+        },
+        body: { otp_claimed_at: null },
+      }).catch(() => {});
+      throw error;
+    }
   } catch (error) {
-    return json(res, 500, { error: error.message || "Could not send OTP." });
+    const message = error.message || "Could not send OTP.";
+    if (message.includes("already been sent to this registration number")) {
+      return json(res, 409, { error: message });
+    }
+    return json(res, 500, { error: message });
   }
 }

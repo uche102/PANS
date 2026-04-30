@@ -8,7 +8,7 @@ import {
   Users,
   Vote,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import Papa from "papaparse";
 import welcome from "../assets/welcome.jpeg";
@@ -36,6 +36,13 @@ export default function Admin() {
   const [candidates, setCandidates] = useState([]);
   const [voters, setVoters] = useState([]);
   const [results, setResults] = useState([]);
+  const [votersLoadedAt, setVotersLoadedAt] = useState("");
+  const [resultsLoadedAt, setResultsLoadedAt] = useState("");
+  const [votersPage, setVotersPage] = useState(1);
+  const [votersPerPage] = useState(10);
+  const [votersHasNext, setVotersHasNext] = useState(false);
+  const [votersLoading, setVotersLoading] = useState(false);
+  const [resultsLoading, setResultsLoading] = useState(false);
   const [postForm, setPostForm] = useState({ id: "", title: "", display_order: 0, is_active: true });
   const [candidateForm, setCandidateForm] = useState(emptyCandidate([]));
   const [loading, setLoading] = useState(false);
@@ -54,7 +61,7 @@ export default function Admin() {
         sessionStorage.setItem("pansAdminToken", data.token);
       }
       setAuthed(true);
-      await loadAdminData();
+      await loadAdminCoreData();
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -62,36 +69,86 @@ export default function Admin() {
     }
   }
 
-  async function loadAdminData() {
-    const [postData, candidateData, voterData, resultData] = await Promise.all([
-      api.adminPosts(),
-      api.adminCandidates(),
-      api.votersVoted(),
-      api.results(),
-    ]);
+  const loadAdminCoreData = useCallback(async () => {
+    const [postData, candidateData] = await Promise.all([api.adminPosts(), api.adminCandidates()]);
     setPosts(postData.posts);
     setCandidates(candidateData.candidates);
-    setVoters(voterData.voters);
-    setResults(resultData.posts);
     setCandidateForm((current) => ({
       ...current,
       post_id: current.post_id || postData.posts[0]?.id || "",
     }));
-  }
+  }, []);
+
+  const loadVoters = useCallback(
+    async (page = votersPage) => {
+    setVotersLoading(true);
+    try {
+      const data = await api.votersVoted(page, votersPerPage);
+      setVoters(data.voters);
+      setVotersPage(data.page);
+      setVotersHasNext(data.hasNextPage);
+      setVotersLoadedAt(new Date().toISOString());
+    } finally {
+      setVotersLoading(false);
+    }
+    },
+    [votersPage, votersPerPage],
+  );
+
+  const loadResults = useCallback(async () => {
+    setResultsLoading(true);
+    try {
+      const data = await api.results();
+      setResults(data.posts);
+      setResultsLoadedAt(data.loadedAt || "");
+    } finally {
+      setResultsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     async function check() {
       try {
         await api.adminSession();
         setAuthed(true);
-        await loadAdminData();
+        await loadAdminCoreData();
       } catch {
         sessionStorage.removeItem("pansAdminToken");
         setAuthed(false);
       }
     }
     check();
-  }, []);
+  }, [loadAdminCoreData]);
+
+  useEffect(() => {
+    if (!authed) return;
+    if (activeTab === "voters" && !votersLoadedAt && !votersLoading) {
+      loadVoters(1);
+    }
+    if (activeTab === "results" && !resultsLoadedAt && !resultsLoading) {
+      loadResults();
+    }
+  }, [
+    activeTab,
+    authed,
+    loadAdminCoreData,
+    loadResults,
+    loadVoters,
+    votersLoadedAt,
+    resultsLoadedAt,
+    votersLoading,
+    resultsLoading,
+  ]);
+
+  const refreshAdminView = useCallback(async () => {
+    await loadAdminCoreData();
+    if (activeTab === "results") {
+      await loadResults();
+    }
+    if (activeTab === "voters") {
+      await loadVoters(votersPage);
+    }
+  }, [activeTab, loadAdminCoreData, loadResults, loadVoters, votersPage]);
 
   async function savePost(event) {
     event.preventDefault();
@@ -100,7 +157,9 @@ export default function Admin() {
       setLoading(true);
       await api.savePost(postForm);
       setPostForm({ id: "", title: "", display_order: 0, is_active: true });
-      await loadAdminData();
+      await loadAdminCoreData();
+      if (activeTab === "results") await loadResults();
+      if (activeTab === "voters") await loadVoters(votersPage);
       setMessage("Post saved.");
     } catch (err) {
       setMessage(err.message);
@@ -116,7 +175,9 @@ export default function Admin() {
       setLoading(true);
       await api.saveCandidate(candidateForm);
       setCandidateForm(emptyCandidate(posts));
-      await loadAdminData();
+      await loadAdminCoreData();
+      if (activeTab === "results") await loadResults();
+      if (activeTab === "voters") await loadVoters(votersPage);
       setMessage("Candidate saved.");
     } catch (err) {
       setMessage(err.message);
@@ -127,12 +188,16 @@ export default function Admin() {
 
   async function removePost(id) {
     await api.deletePost(id);
-    await loadAdminData();
+    await loadAdminCoreData();
+    if (activeTab === "results") await loadResults();
+    if (activeTab === "voters") await loadVoters(votersPage);
   }
 
   async function removeCandidate(id) {
     await api.deleteCandidate(id);
-    await loadAdminData();
+    await loadAdminCoreData();
+    if (activeTab === "results") await loadResults();
+    if (activeTab === "voters") await loadVoters(votersPage);
   }
 
   async function resetElection() {
@@ -151,9 +216,11 @@ export default function Admin() {
       setCandidates([]);
       setResults([]);
       setVoters([]);
+      setVotersPage(1);
+      setVotersHasNext(false);
       setPostForm({ id: "", title: "", display_order: 0, is_active: true });
       setCandidateForm(emptyCandidate([]));
-      await loadAdminData();
+      await loadAdminCoreData();
       setMessage("Election setup reset.");
     } catch (err) {
       setMessage(err.message);
@@ -215,7 +282,9 @@ export default function Admin() {
 
           setLoading(true);
           await api.resetElection(rows);
-          await loadAdminData();
+          await loadAdminCoreData();
+          if (activeTab === "results") await loadResults();
+          if (activeTab === "voters") await loadVoters(1);
           setMessage(`Imported ${rows.length} candidate rows from ${file.name}.`);
         } catch (err) {
           setMessage(err.message);
@@ -292,7 +361,7 @@ export default function Admin() {
             <h1>Admin Dashboard</h1>
             <p>{posts.length} posts · {candidates.length} candidates · {totalVotes} votes</p>
           </div>
-          <button className="icon-button" onClick={loadAdminData} title="Refresh">
+          <button className="icon-button" onClick={refreshAdminView} title="Refresh">
             <RefreshCw size={18} />
           </button>
         </header>
@@ -301,9 +370,9 @@ export default function Admin() {
           <button className={activeTab === "setup" ? "active" : ""} onClick={() => setActiveTab("setup")}>
             <Vote size={16} /> Setup
           </button>
-          <button className={activeTab === "voters" ? "active" : ""} onClick={() => setActiveTab("voters")}>
-            <Users size={16} /> Voted
-          </button>
+            <button className={activeTab === "voters" ? "active" : ""} onClick={() => setActiveTab("voters")}>
+              <Users size={16} /> Voted
+            </button>
           <button className={activeTab === "results" ? "active" : ""} onClick={() => setActiveTab("results")}>
             <Download size={16} /> Results
           </button>
@@ -417,7 +486,15 @@ export default function Admin() {
 
         {activeTab === "voters" && (
           <section className="panel">
-            <h2>People Who Voted</h2>
+            <div className="panel-head">
+              <h2>People Who Voted</h2>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button className="mini-button" type="button" onClick={() => loadVoters(1)} disabled={votersLoading}>
+                  Refresh
+                </button>
+              </div>
+            </div>
+            {votersLoading ? <p className="admin-message">Loading voters...</p> : null}
             <div className="voter-table">
               {voters.map((voter) => (
                 <div className="voter-row" key={voter.reg_no}>
@@ -428,41 +505,66 @@ export default function Admin() {
                 </div>
               ))}
             </div>
+            <div className="panel-head" style={{ marginTop: "12px" }}>
+              <button
+                className="mini-button"
+                type="button"
+                onClick={() => loadVoters(Math.max(1, votersPage - 1))}
+                disabled={votersLoading || votersPage === 1}
+              >
+                Previous
+              </button>
+              <span>Page {votersPage}</span>
+              <button
+                className="mini-button"
+                type="button"
+                onClick={() => loadVoters(votersPage + 1)}
+                disabled={votersLoading || !votersHasNext}
+              >
+                Next
+              </button>
+            </div>
           </section>
         )}
 
         {activeTab === "results" && (
-          <div className="results-grid">
-            {results.map((post) => (
-              <section className="panel" key={post.id}>
-                <div className="panel-head">
-                  <h2>{post.title}</h2>
-                  <button className="mini-button" onClick={() => downloadChart(post.id, post.title)}>
-                    <Download size={14} /> Download
-                  </button>
-                </div>
-                <div className="chart-box" ref={(node) => (chartRefs.current[post.id] = node)}>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie
-                        data={post.candidates}
-                        dataKey="votes"
-                        nameKey="name"
-                        outerRadius={95}
-                        label
-                      >
-                        {post.candidates.map((candidate, index) => (
-                          <Cell key={candidate.id} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
-            ))}
-          </div>
+          <>
+            {resultsLoading ? <p className="admin-message">Loading results...</p> : null}
+            {resultsLoadedAt ? (
+              <p className="admin-message">Results loaded {new Date(resultsLoadedAt).toLocaleString()}</p>
+            ) : null}
+            <div className="results-grid">
+              {results.map((post) => (
+                <section className="panel" key={post.id}>
+                  <div className="panel-head">
+                    <h2>{post.title}</h2>
+                    <button className="mini-button" onClick={() => downloadChart(post.id, post.title)}>
+                      <Download size={14} /> Download
+                    </button>
+                  </div>
+                  <div className="chart-box" ref={(node) => (chartRefs.current[post.id] = node)}>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart>
+                        <Pie
+                          data={post.candidates}
+                          dataKey="votes"
+                          nameKey="name"
+                          outerRadius={95}
+                          label
+                        >
+                          {post.candidates.map((candidate, index) => (
+                            <Cell key={candidate.id} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

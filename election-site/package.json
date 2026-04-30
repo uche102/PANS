@@ -9,6 +9,7 @@
     "start": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
+    "db:schema": "node scripts/apply-schema.mjs",
     "check:smtp": "node scripts/check-smtp.mjs",
     "preview": "vite preview"
   },

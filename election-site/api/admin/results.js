@@ -24,7 +24,7 @@ export default async function handler(req, res) {
         votes: Number(row.vote_count || 0),
       });
     });
-    return json(res, 200, { posts });
+    return json(res, 200, { posts, loadedAt: new Date().toISOString() });
   } catch (error) {
     return json(res, 500, { error: error.message || "Could not load results." });
   }

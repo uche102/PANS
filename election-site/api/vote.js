@@ -58,6 +58,11 @@ export default async function handler(req, res) {
     }
 
     await insertRows("votes", rows);
+    await supabaseRequest("voters", {
+      method: "PATCH",
+      query: { reg_no: `eq.${voter.reg_no}` },
+      body: { ballot_submitted_at: new Date().toISOString() },
+    }).catch(() => {});
     return json(res, 201, { message: "Vote submitted successfully." });
   } catch (error) {
     return json(res, 500, { error: error.message || "Could not submit vote." });

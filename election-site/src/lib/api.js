@@ -3,17 +3,26 @@ async function request(path, options = {}) {
   const voterToken = sessionStorage.getItem("pansVoterToken");
   const adminToken = sessionStorage.getItem("pansAdminToken");
   const authorization = options.authorization || voterToken || adminToken || "";
-  const { headers: providedHeaders, body, authorization: _ignoredAuthorization, ...rest } = options;
+  const { headers: providedHeaders, body, query, authorization: _ignoredAuthorization, ...rest } = options;
   const headers = {
     "Content-Type": "application/json",
     ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
     ...(providedHeaders || {}),
   };
-  const response = await fetch(`${baseUrl}${path}`, {
+  const url = new URL(`${baseUrl}${path}`, window.location.origin);
+  if (query) {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        url.searchParams.set(key, String(value));
+      }
+    });
+  }
+  const response = await fetch(url.toString(), {
     credentials: "include",
     ...rest,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    signal: options.signal,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -44,6 +53,6 @@ export const api = {
     }),
   deleteCandidate: (id) =>
     request("/api/admin/candidates", { method: "DELETE", body: { id } }),
-  votersVoted: () => request("/api/admin/voters-voted"),
+  votersVoted: (page = 1, perPage = 10) => request("/api/admin/voters-voted", { query: { page, perPage } }),
   results: () => request("/api/admin/results"),
 };

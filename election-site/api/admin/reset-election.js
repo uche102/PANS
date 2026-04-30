@@ -13,6 +13,10 @@ export default async function handler(req, res) {
     const votes = await supabaseRequest("votes", { query: { select: "id" } });
     const candidates = await supabaseRequest("candidates", { query: { select: "id" } });
     const posts = await supabaseRequest("posts", { query: { select: "id" } });
+    const otpCodes = await supabaseRequest("otp_codes", { query: { select: "id" } });
+    const voters = await supabaseRequest("voters", {
+      query: { select: "reg_no", otp_claimed_at: "not.is.null" },
+    });
 
     if (votes.length) {
       await supabaseRequest("votes", { method: "DELETE", query: { id: `in.(${votes.map((row) => row.id).join(",")})` } });
@@ -22,6 +26,20 @@ export default async function handler(req, res) {
     }
     if (posts.length) {
       await supabaseRequest("posts", { method: "DELETE", query: { id: `in.(${posts.map((row) => row.id).join(",")})` } });
+    }
+    if (otpCodes.length) {
+      await supabaseRequest("otp_codes", { method: "DELETE", query: { id: `in.(${otpCodes.map((row) => row.id).join(",")})` } });
+    }
+    if (voters.length) {
+      await supabaseRequest("voters", {
+        method: "PATCH",
+        query: { otp_claimed_at: "not.is.null" },
+        body: {
+          otp_claimed_at: null,
+          otp_verified_at: null,
+          ballot_submitted_at: null,
+        },
+      });
     }
 
     if (Array.isArray(items) && items.length) {

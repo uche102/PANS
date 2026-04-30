@@ -9,6 +9,13 @@ create table if not exists voters (
   created_at timestamptz not null default now()
 );
 
+alter table voters add column if not exists otp_claimed_at timestamptz;
+alter table voters add column if not exists otp_verified_at timestamptz;
+alter table voters add column if not exists ballot_submitted_at timestamptz;
+
+create index if not exists voters_otp_claimed_at_idx on voters (otp_claimed_at);
+create index if not exists voters_ballot_submitted_at_idx on voters (ballot_submitted_at);
+
 create table if not exists otp_codes (
   id uuid primary key default gen_random_uuid(),
   reg_no text not null references voters(reg_no) on delete cascade,
@@ -18,6 +25,9 @@ create table if not exists otp_codes (
   used_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+create index if not exists otp_codes_reg_no_idx on otp_codes (reg_no);
+create index if not exists otp_codes_created_at_idx on otp_codes (created_at desc);
 
 create table if not exists posts (
   id uuid primary key default gen_random_uuid(),
@@ -46,6 +56,13 @@ create table if not exists votes (
   created_at timestamptz not null default now(),
   unique (reg_no, post_id)
 );
+
+create index if not exists votes_reg_no_idx on votes (reg_no);
+create index if not exists votes_post_id_idx on votes (post_id);
+create index if not exists votes_candidate_id_idx on votes (candidate_id);
+create index if not exists votes_created_at_idx on votes (created_at desc);
+create index if not exists candidates_post_id_idx on candidates (post_id);
+create index if not exists posts_display_order_idx on posts (display_order);
 
 create or replace view voters_with_vote_status as
 select

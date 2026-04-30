@@ -14,11 +14,14 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 
 ## Setup
 
-1. Create the Supabase tables:
+1. Create the Supabase tables through the session pooler:
 
    ```bash
-   psql "host=db.<project-ref>.supabase.co port=5432 dbname=postgres user=postgres sslmode=require" -f supabase/schema.sql
+   SUPABASE_PSQL_URL="postgresql://postgres:<database-password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require" \
+   npm run db:schema
    ```
+
+   The direct `db.<project-ref>.supabase.co` host can resolve over IPv6 only in some environments. The session pooler route is the IPv4-safe path for schema changes.
 
 2. Import voters:
 
@@ -58,6 +61,7 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_PSQL_URL`
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_USER`

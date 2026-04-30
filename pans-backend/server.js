@@ -75,9 +75,6 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
-// TEMP OTP STORE
-const otpStore = new Map();
-
 // HEALTH CHECK
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Backend is running" });
@@ -102,49 +99,65 @@ app.post("/api/send-otp", async (req, res) => {
         error: "Voter not found or already voted.",
       });
     }
+    const { phone_number: phoneNumber } = student.rows[0];
+    // Strip ALL non-numeric characters (spaces, dashes, plus signs, brackets)
+    let cleanNumber = phoneNumber.replace(/\D/g, "");
 
-    const { phone_number: phoneNumber, name } = student.rows[0];
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Format to strict 234 international standard
+    let formattedNumber;
+    if (cleanNumber.startsWith("0")) {
+      formattedNumber = `234${cleanNumber.slice(1)}`;
+    } else if (cleanNumber.startsWith("234")) {
+      formattedNumber = cleanNumber;
+    } else {
+      // Fallback for numbers entered without 0 or 234 (e.g., 8031234567)
+      formattedNumber = `234${cleanNumber}`;
+    }
 
-    otpStore.set(phoneNumber, {
-      code: otp,
-      expires: Date.now() + 5 * 60 * 1000,
-    });
-
-    const message = `Your PANS Election verification code is ${otp}. It expires in 5 minutes.`;
-
-    // ensure correct format (+234...)
-    const formattedNumber = phoneNumber.startsWith("0")
-      ? `+234${phoneNumber.slice(1)}`
-      : phoneNumber.startsWith("234")
-        ? `+${phoneNumber}`
-        : phoneNumber;
-
-    await axios.post(
-      "https://api.africastalking.com/version1/messaging",
-      new URLSearchParams({
-        username: process.env.AT_USERNAME,
-        to: formattedNumber,
-        message,
-      }),
-      {
-        headers: {
-          apiKey: process.env.AT_API_KEY,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
+    const options = {
+      method: "POST",
+      url: "https://api.sendchamp.com/api/v1/verification/create",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        Authorization: `Bearer ${process.env.SENDCHAMP_API_KEY}`,
+      },
+      data: {
+        channel: "sms",
+        sender: "Sendchamp", // Use default verified sender
+        token_type: "numeric",
+        token_length: 6,
+        expiration_time: 5,
+        customer_mobile_number: formattedNumber,
+        meta_data: {
+          first_name: student.rows[0].name || "Voter",
         },
       },
+    };
+    console.log("Sending to exactly:", formattedNumber);
+    console.log("Type of number:", typeof formattedNumber);
+    const verifyResponse = await axios.request(options);
+
+    console.log(
+      "SENDCHAMP VERIFICATION RESPONSE:",
+      JSON.stringify(verifyResponse.data, null, 2),
     );
+
+    // Extract the reference string.
+    // Note: Verify the exact path in your console logs if this throws an undefined error.
+    const referenceId = verifyResponse.data.data.reference;
 
     const maskedPhone = formattedNumber.replace(
       /(\d{4})(\d+)(\d{2})/,
       "$1******$3",
     );
 
+    // Transmit reference back to the frontend
     res.json({
       success: true,
       message: "OTP sent successfully",
       sentTo: maskedPhone,
+      reference: referenceId,
     });
   } catch (err) {
     console.error("OTP Error:", err.response?.data || err.message);
@@ -152,19 +165,21 @@ app.post("/api/send-otp", async (req, res) => {
   }
 });
 
-// VERIFY OTP
 app.post("/api/verify-otp", async (req, res) => {
-  const { regNo, userCode } = req.body;
+  // Extract reference sent from the frontend
+  const { regNo, userCode, reference } = req.body;
 
-  if (!regNo || !userCode) {
+  if (!regNo || !userCode || !reference) {
     return res.status(400).json({
-      error: "Registration number and OTP are required",
+      error:
+        "Registration number, OTP, and verification reference are required",
     });
   }
 
   try {
+    // 1. Verify voter existence in the database
     const student = await pool.query(
-      "SELECT phone_number FROM voters WHERE reg_no = $1",
+      "SELECT id FROM voters WHERE reg_no = $1",
       [regNo],
     );
 
@@ -172,31 +187,41 @@ app.post("/api/verify-otp", async (req, res) => {
       return res.status(404).json({ error: "Voter not found" });
     }
 
-    const phoneNumber = student.rows[0].phone_number;
-    const record = otpStore.get(phoneNumber);
+    // 2. Transmit confirmation request to Sendchamp
+    const options = {
+      method: "POST",
+      url: "https://api.sendchamp.com/api/v1/verification/confirm",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        Authorization: `Bearer ${process.env.SENDCHAMP_API_KEY}`,
+      },
+      data: {
+        verification_reference: reference,
+        verification_code: userCode,
+      },
+    };
 
-    if (!record) {
-      return res.status(400).json({ error: "OTP not found or expired" });
+    const verifyResponse = await axios.request(options);
+
+    // 3. Evaluate Sendchamp response
+    if (verifyResponse.data.status === "success") {
+      return res.json({
+        success: true,
+        message: "OTP verified successfully",
+      });
+    } else {
+      return res.status(400).json({ error: "Verification failed" });
     }
-
-    if (Date.now() > record.expires) {
-      otpStore.delete(phoneNumber);
-      return res.status(400).json({ error: "OTP expired" });
-    }
-
-    if (record.code !== userCode) {
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
-    otpStore.delete(phoneNumber);
-
-    res.json({
-      success: true,
-      message: "OTP verified successfully",
-    });
   } catch (err) {
-    console.error("Verification error:", err);
-    res.status(500).json({ error: "Verification error" });
+    console.error("Verification error:", err.response?.data || err.message);
+
+    // Extract specific error message from Sendchamp if available (e.g., "Invalid OTP")
+    const apiError =
+      err.response?.data?.message ||
+      err.response?.data?.errors ||
+      "Invalid or expired OTP";
+    res.status(400).json({ error: apiError });
   }
 });
 

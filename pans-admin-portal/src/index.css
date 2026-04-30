@@ -263,6 +263,13 @@ body {
   text-align: center;
   border: 1px solid #334155;
 }
+.login-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 12px;
+}
 
 .security-header h2 {
   color: white;

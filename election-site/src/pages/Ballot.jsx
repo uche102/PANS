@@ -114,7 +114,10 @@ export default function Ballot() {
 
         <div className="post-list">
           {posts.map((post) => (
-            <section className="post-section" key={post.id}>
+            <section
+              className={`post-section ${post.title.toLowerCase().includes("squid game") ? "post-section-featured" : ""}`}
+              key={post.id}
+            >
               <h2>{post.title}</h2>
               <div className="candidate-grid">
                 {post.candidates.map((candidate) => {
@@ -123,7 +126,9 @@ export default function Ballot() {
                     <button
                       type="button"
                       key={candidate.id}
-                      className={`candidate-card ${selected ? "selected" : ""}`}
+                      className={`candidate-card ${selected ? "selected" : ""} ${
+                        post.title.toLowerCase().includes("squid game") ? "candidate-card-large" : ""
+                      }`}
                       onClick={() =>
                         setSelections((current) => ({ ...current, [post.id]: candidate.id }))
                       }
@@ -132,7 +137,7 @@ export default function Ballot() {
                         {candidate.image_url ? (
                           <img src={candidate.image_url} alt={candidate.name} />
                         ) : (
-                          <UserRound size={34} />
+                          <UserRound size={post.title.toLowerCase().includes("squid game") ? 48 : 39} />
                         )}
                       </div>
                       <strong>{candidate.name}</strong>

@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Ballot = lazy(() => import("./pages/Ballot.jsx"));
 const Success = lazy(() => import("./pages/Success.jsx"));
-const Admin = lazy(() => import("./pages/Admin.jsx"));
+const AdminGate = lazy(() => import("./pages/AdminGate.jsx"));
 
 const ProtectedBallot = ({ children }) => {
   const voterSession = sessionStorage.getItem("pansVoter");
@@ -26,7 +26,7 @@ function App() {
             }
           />
           <Route path="/success" element={<Success />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<AdminGate />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

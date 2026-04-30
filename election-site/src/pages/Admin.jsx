@@ -260,7 +260,7 @@ export default function Admin() {
           <form className="login-panel compact" onSubmit={login}>
             <Lock size={34} />
             <h1>Admin</h1>
-            <p>PANS UniZik election control</p>
+            <p>PANS UNIZIK election control</p>
             <label>
               <span>Password</span>
               <div className="field">

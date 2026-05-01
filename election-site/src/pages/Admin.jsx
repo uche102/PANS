@@ -16,6 +16,11 @@ import { api } from "../lib/api";
 
 const COLORS = ["#0f766e", "#2563eb", "#c2410c", "#7c3aed", "#be123c", "#15803d"];
 
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return "0%";
+  return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+}
+
 function emptyCandidate(posts) {
   return {
     id: "",
@@ -322,6 +327,22 @@ export default function Admin() {
     [results],
   );
 
+  const percentageResults = useMemo(
+    () =>
+      results.map((post) => {
+        const postTotal = post.candidates.reduce((sum, candidate) => sum + candidate.votes, 0);
+        return {
+          ...post,
+          totalVotes: postTotal,
+          candidates: post.candidates.map((candidate) => ({
+            ...candidate,
+            percentage: postTotal ? (candidate.votes / postTotal) * 100 : 0,
+          })),
+        };
+      }),
+    [results],
+  );
+
   if (!authed) {
     return (
       <div className="login-page" style={{ backgroundImage: `url(${welcome})` }}>
@@ -534,7 +555,7 @@ export default function Admin() {
               <p className="admin-message">Results loaded {new Date(resultsLoadedAt).toLocaleString()}</p>
             ) : null}
             <div className="results-grid">
-              {results.map((post) => (
+              {percentageResults.map((post) => (
                 <section className="panel" key={post.id}>
                   <div className="panel-head">
                     <h2>{post.title}</h2>
@@ -542,21 +563,28 @@ export default function Admin() {
                       <Download size={14} /> Download
                     </button>
                   </div>
+                  <p className="admin-message">Total votes: {post.totalVotes}</p>
                   <div className="chart-box" ref={(node) => (chartRefs.current[post.id] = node)}>
                     <ResponsiveContainer width="100%" height={280}>
                       <PieChart>
                         <Pie
                           data={post.candidates}
-                          dataKey="votes"
+                          dataKey="percentage"
                           nameKey="name"
                           outerRadius={95}
-                          label
+                          label={({ name, percentage }) => `${name}: ${formatPercent(percentage)}`}
+                          labelLine={false}
                         >
                           {post.candidates.map((candidate, index) => (
                             <Cell key={candidate.id} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip
+                          formatter={(value, _name, item) => [
+                            `${formatPercent(Number(value))} (${item.payload.votes} votes)`,
+                            item.payload.name,
+                          ]}
+                        />
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>

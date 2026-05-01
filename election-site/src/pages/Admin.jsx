@@ -1,9 +1,11 @@
 import {
   Download,
   Lock,
+  PauseCircle,
   Plus,
   RefreshCw,
   Save,
+  PlayCircle,
   Trash2,
   Users,
   Vote,
@@ -48,6 +50,7 @@ export default function Admin() {
   const [votersHasNext, setVotersHasNext] = useState(false);
   const [votersLoading, setVotersLoading] = useState(false);
   const [resultsLoading, setResultsLoading] = useState(false);
+  const [electionStatus, setElectionStatus] = useState({ votingOpen: true, updatedAt: "" });
   const [postForm, setPostForm] = useState({ id: "", title: "", display_order: 0, is_active: true });
   const [candidateForm, setCandidateForm] = useState(emptyCandidate([]));
   const [loading, setLoading] = useState(false);
@@ -75,9 +78,14 @@ export default function Admin() {
   }
 
   const loadAdminCoreData = useCallback(async () => {
-    const [postData, candidateData] = await Promise.all([api.adminPosts(), api.adminCandidates()]);
+    const [postData, candidateData, statusData] = await Promise.all([
+      api.adminPosts(),
+      api.adminCandidates(),
+      api.electionStatus(),
+    ]);
     setPosts(postData.posts);
     setCandidates(candidateData.candidates);
+    setElectionStatus(statusData);
     setCandidateForm((current) => ({
       ...current,
       post_id: current.post_id || postData.posts[0]?.id || "",
@@ -234,6 +242,46 @@ export default function Admin() {
     }
   }
 
+  async function resetVotes() {
+    if (
+      !window.confirm(
+        "Reset all votes? Posts and candidates will stay, but all submitted votes and OTP state will be cleared.",
+      )
+    ) {
+      return;
+    }
+    setMessage("");
+    try {
+      setLoading(true);
+      const data = await api.resetVotes();
+      setResults([]);
+      setVoters([]);
+      setVotersPage(1);
+      setVotersHasNext(false);
+      setResultsLoadedAt("");
+      setVotersLoadedAt("");
+      setMessage(data.message || "Votes reset.");
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggleVoting(nextOpen) {
+    setMessage("");
+    try {
+      setLoading(true);
+      const data = await api.setElectionStatus(nextOpen);
+      setElectionStatus(data);
+      setMessage(nextOpen ? "Voting site opened." : "Voting site closed.");
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleTemplateDownload() {
     const rows = [
       {
@@ -382,9 +430,14 @@ export default function Admin() {
             <h1>Admin Dashboard</h1>
             <p>{posts.length} posts · {candidates.length} candidates · {totalVotes} votes</p>
           </div>
-          <button className="icon-button" onClick={refreshAdminView} title="Refresh">
-            <RefreshCw size={18} />
-          </button>
+          <div className="topbar-actions">
+            <span className={`status-pill ${electionStatus.votingOpen ? "open" : "closed"}`}>
+              {electionStatus.votingOpen ? "Voting Open" : "Voting Closed"}
+            </span>
+            <button className="icon-button" onClick={refreshAdminView} title="Refresh">
+              <RefreshCw size={18} />
+            </button>
+          </div>
         </header>
 
         <nav className="tabs">
@@ -403,6 +456,46 @@ export default function Admin() {
 
         {activeTab === "setup" && (
           <div className="admin-grid">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h2>Election Control</h2>
+                  <p className="panel-note">
+                    {electionStatus.votingOpen
+                      ? "Voters can request OTPs and submit ballots."
+                      : "Voters cannot request OTPs or submit ballots."}
+                  </p>
+                </div>
+                <span className={`status-pill ${electionStatus.votingOpen ? "open" : "closed"}`}>
+                  {electionStatus.votingOpen ? "Open" : "Closed"}
+                </span>
+              </div>
+              <div className="control-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => toggleVoting(true)}
+                  disabled={loading || electionStatus.votingOpen}
+                >
+                  <PlayCircle size={16} /> Start Voting
+                </button>
+                <button
+                  className="mini-button danger"
+                  type="button"
+                  onClick={() => toggleVoting(false)}
+                  disabled={loading || !electionStatus.votingOpen}
+                >
+                  <PauseCircle size={16} /> Stop Voting
+                </button>
+                <button className="mini-button danger" type="button" onClick={resetVotes} disabled={loading}>
+                  Reset Votes
+                </button>
+              </div>
+              {electionStatus.updatedAt ? (
+                <p className="panel-note">Last changed {new Date(electionStatus.updatedAt).toLocaleString()}</p>
+              ) : null}
+            </section>
+
             <section className="panel">
               <div className="panel-head">
                 <h2>Posts</h2>

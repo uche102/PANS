@@ -10,22 +10,18 @@ export default async function handler(req, res) {
 
   try {
     const { items = [] } = await readBody(req);
+    const resetVotesOnly = items === "votes-only" || items?.resetVotesOnly === true;
     const votes = await supabaseRequest("votes", { query: { select: "id" } });
-    const candidates = await supabaseRequest("candidates", { query: { select: "id" } });
-    const posts = await supabaseRequest("posts", { query: { select: "id" } });
     const otpCodes = await supabaseRequest("otp_codes", { query: { select: "id" } });
     const voters = await supabaseRequest("voters", {
-      query: { select: "reg_no", otp_claimed_at: "not.is.null" },
+      query: {
+        select: "reg_no",
+        or: "(otp_claimed_at.not.is.null,otp_verified_at.not.is.null,ballot_submitted_at.not.is.null)",
+      },
     });
 
     if (votes.length) {
       await supabaseRequest("votes", { method: "DELETE", query: { id: `in.(${votes.map((row) => row.id).join(",")})` } });
-    }
-    if (candidates.length) {
-      await supabaseRequest("candidates", { method: "DELETE", query: { id: `in.(${candidates.map((row) => row.id).join(",")})` } });
-    }
-    if (posts.length) {
-      await supabaseRequest("posts", { method: "DELETE", query: { id: `in.(${posts.map((row) => row.id).join(",")})` } });
     }
     if (otpCodes.length) {
       await supabaseRequest("otp_codes", { method: "DELETE", query: { id: `in.(${otpCodes.map((row) => row.id).join(",")})` } });
@@ -33,13 +29,30 @@ export default async function handler(req, res) {
     if (voters.length) {
       await supabaseRequest("voters", {
         method: "PATCH",
-        query: { otp_claimed_at: "not.is.null" },
+        query: { reg_no: `in.(${voters.map((row) => row.reg_no).join(",")})` },
         body: {
           otp_claimed_at: null,
           otp_verified_at: null,
           ballot_submitted_at: null,
         },
       });
+    }
+
+    if (resetVotesOnly) {
+      return json(res, 200, {
+        message: "Votes and voter login state have been reset.",
+        resetVotes: votes.length,
+      });
+    }
+
+    const candidates = await supabaseRequest("candidates", { query: { select: "id" } });
+    const posts = await supabaseRequest("posts", { query: { select: "id" } });
+
+    if (candidates.length) {
+      await supabaseRequest("candidates", { method: "DELETE", query: { id: `in.(${candidates.map((row) => row.id).join(",")})` } });
+    }
+    if (posts.length) {
+      await supabaseRequest("posts", { method: "DELETE", query: { id: `in.(${posts.map((row) => row.id).join(",")})` } });
     }
 
     if (Array.isArray(items) && items.length) {

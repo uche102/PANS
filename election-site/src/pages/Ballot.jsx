@@ -9,6 +9,7 @@ export default function Ballot() {
   const [voter, setVoter] = useState(null);
   const [posts, setPosts] = useState([]);
   const [selections, setSelections] = useState({});
+  const [votingOpen, setVotingOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -36,6 +37,7 @@ export default function Ballot() {
           me?.voter ? me.voter : JSON.parse(storedVoter),
         );
         if (election.status === "fulfilled") {
+          setVotingOpen(election.value.votingOpen !== false);
           setPosts(election.value.posts);
         } else {
           throw election.reason;
@@ -52,7 +54,7 @@ export default function Ballot() {
   }, [navigate]);
 
   const selectedCount = Object.keys(selections).length;
-  const canSubmit = posts.length > 0 && selectedCount === posts.length;
+  const canSubmit = votingOpen && posts.length > 0 && selectedCount === posts.length;
 
   const voterLabel = useMemo(() => {
     if (!voter) return "";
@@ -104,7 +106,9 @@ export default function Ballot() {
         <div className="status-row">
           <CheckCircle size={18} />
           <span>
-            {selectedCount} of {posts.length} posts selected
+            {votingOpen
+              ? `${selectedCount} of ${posts.length} posts selected`
+              : "Voting is currently closed"}
           </span>
         </div>
 
@@ -129,6 +133,7 @@ export default function Ballot() {
                       className={`candidate-card ${selected ? "selected" : ""} ${
                         post.title.toLowerCase().includes("squid game") ? "candidate-card-large" : ""
                       }`}
+                      disabled={!votingOpen || submitting}
                       onClick={() =>
                         setSelections((current) => ({ ...current, [post.id]: candidate.id }))
                       }
@@ -154,7 +159,7 @@ export default function Ballot() {
         {error && <p className="error-text">{error}</p>}
         <div className="sticky-action">
           <button className="primary-button" disabled={!canSubmit || submitting} onClick={submitVote}>
-            {submitting ? "Submitting..." : "Submit Ballot"}
+            {submitting ? "Submitting..." : votingOpen ? "Submit Ballot" : "Voting Closed"}
           </button>
         </div>
       </div>

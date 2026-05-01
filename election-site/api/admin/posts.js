@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const posts = await supabaseRequest("posts", {
-        query: { select: "*", order: "display_order.asc" },
+        query: { select: "*", title: "not.like.__PANS_ELECTION_CONTROL__:%", order: "display_order.asc" },
       });
       return json(res, 200, { posts });
     }

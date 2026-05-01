@@ -1,4 +1,5 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
+import { getElectionStatus } from "./_lib/election-status.js";
 import { requireVoter } from "./_lib/session.js";
 import { insertRows, supabaseRequest } from "./_lib/supabase.js";
 
@@ -8,6 +9,11 @@ export default async function handler(req, res) {
   try {
     const voter = requireVoter(req, res);
     if (!voter) return;
+
+    const status = await getElectionStatus();
+    if (!status.votingOpen) {
+      return json(res, 403, { error: "Voting is currently closed." });
+    }
 
     const existingVotes = await supabaseRequest("votes", {
       query: { reg_no: `eq.${voter.reg_no}`, select: "id", limit: "1" },

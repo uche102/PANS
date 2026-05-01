@@ -49,8 +49,12 @@ export const api = {
   vote: (selections) => request("/api/vote", { method: "POST", body: { selections } }),
   adminLogin: (password) => request("/api/admin/login", { method: "POST", body: { password } }),
   adminSession: () => request("/api/admin/session"),
+  electionStatus: () => request("/api/admin/session"),
+  setElectionStatus: (votingOpen) =>
+    request("/api/admin/session", { method: "PATCH", body: { votingOpen } }),
   adminPosts: () => request("/api/admin/posts"),
   resetElection: (items) => request("/api/admin/reset-election", { method: "POST", body: { items } }),
+  resetVotes: () => request("/api/admin/reset-election", { method: "POST", body: { items: "votes-only" } }),
   savePost: (post) =>
     request("/api/admin/posts", { method: post.id ? "PUT" : "POST", body: post }),
   deletePost: (id) => request("/api/admin/posts", { method: "DELETE", body: { id } }),

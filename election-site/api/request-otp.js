@@ -1,4 +1,5 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
+import { getElectionStatus } from "./_lib/election-status.js";
 import { createOtpCode, maskEmail, sendOtpEmail, storeOtp } from "./_lib/otp.js";
 import { getSingle, supabaseRequest } from "./_lib/supabase.js";
 
@@ -11,6 +12,11 @@ export default async function handler(req, res) {
     const regNoValue = String(reg_no || regNo || "").trim().toUpperCase();
     requestedRegNo = regNoValue;
     if (!regNoValue) return json(res, 400, { error: "Registration number is required." });
+
+    const status = await getElectionStatus();
+    if (!status.votingOpen) {
+      return json(res, 403, { error: "Voting is currently closed." });
+    }
 
     const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
     if (!voter) return json(res, 404, { error: "Registration number was not found." });

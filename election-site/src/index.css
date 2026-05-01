@@ -475,8 +475,42 @@ label span {
 }
 
 .chart-box {
-  height: 300px;
-  margin-top: 14px;
+  height: 340px;
+  margin-top: 16px;
+  overflow: visible;
+}
+
+.result-breakdown {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.result-breakdown-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.result-breakdown-row span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.result-breakdown-row strong {
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+.result-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
 }
 
 @media (max-width: 720px) {

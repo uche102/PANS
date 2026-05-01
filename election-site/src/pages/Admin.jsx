@@ -571,9 +571,8 @@ export default function Admin() {
                           data={post.candidates}
                           dataKey="percentage"
                           nameKey="name"
-                          outerRadius={95}
-                          label={({ name, percentage }) => `${name}: ${formatPercent(percentage)}`}
-                          labelLine={false}
+                          outerRadius={90}
+                          label={({ percentage }) => formatPercent(percentage)}
                         >
                           {post.candidates.map((candidate, index) => (
                             <Cell key={candidate.id} fill={COLORS[index % COLORS.length]} />
@@ -585,9 +584,21 @@ export default function Admin() {
                             item.payload.name,
                           ]}
                         />
-                        <Legend />
+                        <Legend verticalAlign="bottom" height={36} />
                       </PieChart>
                     </ResponsiveContainer>
+                  </div>
+                  <div className="result-breakdown">
+                    {post.candidates.map((candidate, index) => (
+                      <div className="result-breakdown-row" key={candidate.id}>
+                        <span
+                          className="result-color"
+                          style={{ background: COLORS[index % COLORS.length] }}
+                        />
+                        <span>{candidate.name}</span>
+                        <strong>{formatPercent(candidate.percentage)}</strong>
+                      </div>
+                    ))}
                   </div>
                 </section>
               ))}

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import nodemailer from "nodemailer";
 import { getSingle, insertRows, supabaseRequest } from "./supabase.js";
 
-const OTP_TTL_MINUTES = 10;
+const OTP_EXPIRES_AT = "9999-12-31T23:59:59.000Z";
 
 function hashOtp(code) {
   return crypto
@@ -24,12 +24,11 @@ export async function storeOtp(regNo, code) {
     throw new Error("An OTP has already been sent to this registration number.");
   }
 
-  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
   const [record] = await insertRows("otp_codes", [
     {
       reg_no: regNo,
       code_hash: hashOtp(code),
-      expires_at: expiresAt.toISOString(),
+      expires_at: OTP_EXPIRES_AT,
     },
   ]);
   return record;
@@ -44,10 +43,6 @@ export async function verifyOtp(regNo, code) {
 
   if (!otp) return { ok: false, message: "No active OTP found." };
   if (otp.attempts >= 5) return { ok: false, message: "Too many OTP attempts." };
-  if (new Date(otp.expires_at).getTime() < Date.now()) {
-    return { ok: false, message: "OTP has expired." };
-  }
-
   const isMatch = hashOtp(code) === otp.code_hash;
   if (!isMatch) {
     await supabaseRequest("otp_codes", {
@@ -79,14 +74,14 @@ export async function sendOtpEmail(voter, code) {
         from: process.env.RESEND_FROM || "PANS UniZik Election <onboarding@resend.dev>",
         to: [voter.email],
         subject: "PANS UniZik Election OTP",
-        text: `Your PANS UniZik election login OTP is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+        text: `Your PANS UniZik election login OTP is ${code}. Keep this code safe. It remains valid until you use it to log in and vote.`,
         html: `
           <div style="font-family:Arial,sans-serif;line-height:1.5">
             <h2>PANS UniZik Election Login</h2>
             <p>Hello ${voter.name || voter.reg_no},</p>
             <p>Your login OTP is:</p>
             <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
-            <p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>
+            <p>Keep this code safe. It remains valid until you use it to log in and vote.</p>
           </div>
         `,
       }),
@@ -127,14 +122,14 @@ export async function sendOtpEmail(voter, code) {
     from: process.env.SMTP_FROM,
     to: voter.email,
     subject: "PANS UniZik Election OTP",
-    text: `Your PANS UniZik election login OTP is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+    text: `Your PANS UniZik election login OTP is ${code}. Keep this code safe. It remains valid until you use it to log in and vote.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.5">
         <h2>PANS UniZik Election Login</h2>
         <p>Hello ${voter.name || voter.reg_no},</p>
         <p>Your login OTP is:</p>
         <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
-        <p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>
+        <p>Keep this code safe. It remains valid until you use it to log in and vote.</p>
       </div>
     `,
   });

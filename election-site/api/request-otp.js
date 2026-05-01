@@ -5,9 +5,11 @@ import { getSingle, supabaseRequest } from "./_lib/supabase.js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res);
 
+  let requestedRegNo = "";
   try {
     const { reg_no, regNo } = await readBody(req);
     const regNoValue = String(reg_no || regNo || "").trim().toUpperCase();
+    requestedRegNo = regNoValue;
     if (!regNoValue) return json(res, 400, { error: "Registration number is required." });
 
     const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
@@ -24,7 +26,10 @@ export default async function handler(req, res) {
     }
     if (voter.otp_claimed_at) {
       return json(res, 409, {
+        code: "PENDING_OTP",
         error: `An OTP has already been sent to ${maskEmail(voter.email)} for this registration number.`,
+        regNo: voter.reg_no,
+        sentTo: maskEmail(voter.email),
       });
     }
 
@@ -45,7 +50,10 @@ export default async function handler(req, res) {
         return json(res, 409, { error: "This voter has already submitted a ballot." });
       }
       return json(res, 409, {
+        code: "PENDING_OTP",
         error: `An OTP has already been sent to ${maskEmail(voter.email)} for this registration number.`,
+        regNo: voter.reg_no,
+        sentTo: maskEmail(voter.email),
       });
     }
 
@@ -83,7 +91,12 @@ export default async function handler(req, res) {
   } catch (error) {
     const message = error.message || "Could not send OTP.";
     if (message.includes("already been sent to this registration number")) {
-      return json(res, 409, { error: message });
+      return json(res, 409, {
+        code: "PENDING_OTP",
+        error: message,
+        regNo: requestedRegNo,
+        sentTo: "your registered email",
+      });
     }
     return json(res, 500, { error: message });
   }

@@ -1,9 +1,36 @@
 import { ArrowLeft, Lock, Mail, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import liberty from "../assets/liberty.jpeg";
 import pansLogo from "../assets/IMG-20260410-WA0090.jpg";
 import { api } from "../lib/api";
+
+const PENDING_OTP_KEY = "pansPendingOtp";
+
+function savePendingOtp(regNo, sentTo = "") {
+  try {
+    localStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ regNo, sentTo }));
+  } catch {
+    // Some browsers can block localStorage; the normal OTP flow still works.
+  }
+}
+
+function clearPendingOtp() {
+  try {
+    localStorage.removeItem(PENDING_OTP_KEY);
+  } catch {
+    // Some browsers can block localStorage; clearing is best-effort.
+  }
+}
+
+function readPendingOtp() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_OTP_KEY) || "null");
+  } catch {
+    clearPendingOtp();
+    return null;
+  }
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,6 +42,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const pending = readPendingOtp();
+    if (!pending?.regNo) return;
+
+    setRegNo(pending.regNo);
+    setSentTo(pending.sentTo || "your registered email");
+    setStep("otp");
+  }, []);
+
   async function requestOtp() {
     setError("");
     if (!regNo.trim()) {
@@ -24,11 +60,24 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const data = await api.requestOtp(regNo.trim().toUpperCase());
+      const cleanRegNo = regNo.trim().toUpperCase();
+      const data = await api.requestOtp(cleanRegNo);
       setSentTo(data.sentTo);
       setDevOtp(data.devOtp || "");
+      savePendingOtp(cleanRegNo, data.sentTo);
       setStep("otp");
     } catch (err) {
+      if (err.data?.code === "PENDING_OTP") {
+        const pendingRegNo = err.data.regNo || regNo.trim().toUpperCase();
+        const pendingSentTo = err.data.sentTo || "your registered email";
+        setRegNo(pendingRegNo);
+        setSentTo(pendingSentTo);
+        setDevOtp("");
+        savePendingOtp(pendingRegNo, pendingSentTo);
+        setStep("otp");
+        setError("Enter the OTP already sent to your email.");
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);
@@ -50,6 +99,7 @@ export default function Login() {
       if (data.token) {
         sessionStorage.setItem("pansVoterToken", data.token);
       }
+      clearPendingOtp();
       navigate("/ballot");
     } catch (err) {
       setError(err.message);
@@ -122,6 +172,7 @@ export default function Login() {
                   setOtp("");
                   setDevOtp("");
                   setError("");
+                  clearPendingOtp();
                 }}
               >
                 <ArrowLeft size={16} />

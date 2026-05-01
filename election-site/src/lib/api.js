@@ -1,3 +1,12 @@
+export class ApiError extends Error {
+  constructor(message, status, data = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 async function request(path, options = {}) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
   const voterToken = sessionStorage.getItem("pansVoterToken");
@@ -27,7 +36,7 @@ async function request(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || data.message || "Request failed.");
+    throw new ApiError(data.error || data.message || "Request failed.", response.status, data);
   }
   return data;
 }

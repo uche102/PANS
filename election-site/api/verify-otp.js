@@ -26,15 +26,14 @@ export default async function handler(req, res) {
       return json(res, 409, { error: "This voter has already voted." });
     }
 
-    if (voter.ballot_submitted_at) {
-      return json(res, 409, { error: "This voter has already submitted a ballot." });
-    }
-
     const token = createVoterSession(res, voter);
     await supabaseRequest("voters", {
       method: "PATCH",
       query: { reg_no: `eq.${regNoValue}` },
-      body: { otp_verified_at: new Date().toISOString() },
+      body: {
+        otp_verified_at: new Date().toISOString(),
+        ballot_submitted_at: null,
+      },
     }).catch(() => {});
     return json(res, 200, {
       voter: {

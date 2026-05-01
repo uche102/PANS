@@ -21,41 +21,14 @@ export default async function handler(req, res) {
       return json(res, 409, { error: "This voter has already voted." });
     }
 
-    if (voter.ballot_submitted_at) {
-      return json(res, 409, { error: "This voter has already submitted a ballot." });
-    }
-    if (voter.otp_claimed_at) {
-      return json(res, 409, {
-        code: "PENDING_OTP",
-        error: `An OTP has already been sent to ${maskEmail(voter.email)} for this registration number.`,
-        regNo: voter.reg_no,
-        sentTo: maskEmail(voter.email),
-      });
-    }
-
     const claimedAt = new Date().toISOString();
-    const claimed = await supabaseRequest("voters", {
+    await supabaseRequest("voters", {
       method: "PATCH",
       query: {
         reg_no: `eq.${regNoValue}`,
-        otp_claimed_at: "is.null",
-        ballot_submitted_at: "is.null",
       },
       body: { otp_claimed_at: claimedAt },
     });
-
-    if (!claimed.length) {
-      const current = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
-      if (current?.ballot_submitted_at) {
-        return json(res, 409, { error: "This voter has already submitted a ballot." });
-      }
-      return json(res, 409, {
-        code: "PENDING_OTP",
-        error: `An OTP has already been sent to ${maskEmail(voter.email)} for this registration number.`,
-        regNo: voter.reg_no,
-        sentTo: maskEmail(voter.email),
-      });
-    }
 
     const code = createOtpCode();
     try {

@@ -16,13 +16,14 @@ export function createOtpCode() {
 }
 
 export async function storeOtp(regNo, code) {
-  const existing = await getSingle("otp_codes", {
-    reg_no: `eq.${regNo}`,
-    order: "created_at.desc",
+  await supabaseRequest("otp_codes", {
+    method: "PATCH",
+    query: {
+      reg_no: `eq.${regNo}`,
+      used_at: "is.null",
+    },
+    body: { used_at: new Date().toISOString() },
   });
-  if (existing) {
-    throw new Error("An OTP has already been sent to this registration number.");
-  }
 
   const [record] = await insertRows("otp_codes", [
     {

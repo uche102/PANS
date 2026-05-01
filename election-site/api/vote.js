@@ -29,6 +29,7 @@ export default async function handler(req, res) {
 
     if (
       requiredPostIds.length === 0 ||
+      selectedPostIds.length !== requiredPostIds.length ||
       requiredPostIds.some((postId) => !selectedPostIds.includes(postId))
     ) {
       return json(res, 400, { error: "Please vote for every available post." });
@@ -50,14 +51,27 @@ export default async function handler(req, res) {
     });
     const validSelections = rows.every((row) =>
       candidates.some(
-        (candidate) => candidate.id === row.candidate_id && candidate.post_id === row.post_id,
+        (candidate) =>
+          String(candidate.id) === String(row.candidate_id) &&
+          String(candidate.post_id) === String(row.post_id),
       ),
     );
     if (!validSelections) {
       return json(res, 400, { error: "One or more selected candidates are invalid." });
     }
 
-    await insertRows("votes", rows);
+    const insertedVotes = await insertRows("votes", rows);
+    if (!insertedVotes || insertedVotes.length !== rows.length) {
+      throw new Error("Vote submission was not fully saved. Please try again.");
+    }
+
+    const savedVotes = await supabaseRequest("votes", {
+      query: { reg_no: `eq.${voter.reg_no}`, select: "id", limit: String(requiredPostIds.length) },
+    });
+    if (savedVotes.length !== requiredPostIds.length) {
+      throw new Error("Vote submission could not be confirmed. Please contact the election administrator.");
+    }
+
     await supabaseRequest("voters", {
       method: "PATCH",
       query: { reg_no: `eq.${voter.reg_no}` },

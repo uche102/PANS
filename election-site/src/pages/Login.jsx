@@ -6,12 +6,34 @@ import pansLogo from "../assets/IMG-20260410-WA0090.jpg";
 import { api } from "../lib/api";
 
 const PENDING_OTP_KEY = "pansPendingOtp";
+const PENDING_OTP_MAX_AGE = 1000 * 60 * 60 * 6;
+
+function normalizePendingOtp(value) {
+  if (!value?.regNo) return null;
+  const savedAt = Number(value.savedAt || 0);
+  if (savedAt && Date.now() - savedAt > PENDING_OTP_MAX_AGE) return null;
+  return {
+    regNo: String(value.regNo || "").trim().toUpperCase(),
+    sentTo: value.sentTo || "your registered email",
+    savedAt: savedAt || Date.now(),
+  };
+}
 
 function savePendingOtp(regNo, sentTo = "") {
+  const payload = JSON.stringify({
+    regNo,
+    sentTo: sentTo || "your registered email",
+    savedAt: Date.now(),
+  });
   try {
-    localStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ regNo, sentTo }));
+    localStorage.setItem(PENDING_OTP_KEY, payload);
   } catch {
-    // Some browsers can block localStorage; the normal OTP flow still works.
+    // Some browsers can block localStorage; sessionStorage is the fallback.
+  }
+  try {
+    sessionStorage.setItem(PENDING_OTP_KEY, payload);
+  } catch {
+    // Some browsers can block sessionStorage; the normal OTP flow still works.
   }
 }
 
@@ -21,15 +43,24 @@ function clearPendingOtp() {
   } catch {
     // Some browsers can block localStorage; clearing is best-effort.
   }
+  try {
+    sessionStorage.removeItem(PENDING_OTP_KEY);
+  } catch {
+    // Some browsers can block sessionStorage; clearing is best-effort.
+  }
 }
 
 function readPendingOtp() {
-  try {
-    return JSON.parse(localStorage.getItem(PENDING_OTP_KEY) || "null");
-  } catch {
-    clearPendingOtp();
-    return null;
+  const stores = [sessionStorage, localStorage];
+  for (const store of stores) {
+    try {
+      const pending = normalizePendingOtp(JSON.parse(store.getItem(PENDING_OTP_KEY) || "null"));
+      if (pending) return pending;
+    } catch {
+      clearPendingOtp();
+    }
   }
+  return null;
 }
 
 export default function Login() {
@@ -43,12 +74,22 @@ export default function Login() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const pending = readPendingOtp();
-    if (!pending?.regNo) return;
+    function restorePendingOtp() {
+      const pending = readPendingOtp();
+      if (!pending?.regNo) return;
 
-    setRegNo(pending.regNo);
-    setSentTo(pending.sentTo || "your registered email");
-    setStep("otp");
+      setRegNo(pending.regNo);
+      setSentTo(pending.sentTo || "your registered email");
+      setStep("otp");
+    }
+
+    restorePendingOtp();
+    window.addEventListener("pageshow", restorePendingOtp);
+    window.addEventListener("focus", restorePendingOtp);
+    return () => {
+      window.removeEventListener("pageshow", restorePendingOtp);
+      window.removeEventListener("focus", restorePendingOtp);
+    };
   }, []);
 
   async function requestOtp() {
@@ -66,6 +107,7 @@ export default function Login() {
       setDevOtp(data.devOtp || "");
       savePendingOtp(cleanRegNo, data.sentTo);
       setStep("otp");
+      setOtp("");
     } catch (err) {
       if (err.data?.code === "PENDING_OTP") {
         const pendingRegNo = err.data.regNo || regNo.trim().toUpperCase();
@@ -163,6 +205,9 @@ export default function Login() {
               {error && <p className="error-text">{error}</p>}
               <button className="primary-button" disabled={loading}>
                 {loading ? "Verifying..." : "Login to Vote"}
+              </button>
+              <button type="button" className="ghost-button" disabled={loading} onClick={requestOtp}>
+                {loading ? "Sending..." : "Resend OTP"}
               </button>
               <button
                 type="button"

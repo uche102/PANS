@@ -92,6 +92,11 @@ left join votes v on v.candidate_id = c.id and v.post_id = p.id
 where p.is_active = true and c.is_active = true
 group by p.id, p.title, p.display_order, c.id, c.name, c.display_order;
 
+-- Clear existing data (careful with order due to foreign keys)
+truncate table votes cascade;
+truncate table otp_codes cascade;
+truncate table voters cascade;
+
 alter table voters enable row level security;
 alter table otp_codes enable row level security;
 alter table posts enable row level security;

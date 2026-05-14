@@ -41,7 +41,7 @@ app.use(
       process.env.VOTER_FRONTEND_URL,
       process.env.ADMIN_FRONTEND_URL,
     ].filter(Boolean),
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   }),
 );

@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import Papa from "papaparse";
+import Papa from "papaparse"; 
+
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
 

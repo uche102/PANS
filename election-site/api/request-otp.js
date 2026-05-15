@@ -1,7 +1,12 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
 import { hasCompletedRecordedBallot } from "./_lib/ballot-status.js";
 import { getElectionStatus } from "./_lib/election-status.js";
-import { createOtpCode, maskEmail, sendOtpEmail, storeOtp } from "./_lib/otp.js";
+import {
+  createOtpCode,
+  maskEmail,
+  sendOtpEmail,
+  storeOtp,
+} from "./_lib/otp.js";
 import { getSingle, supabaseRequest } from "./_lib/supabase.js";
 
 export default async function handler(req, res) {
@@ -10,9 +15,12 @@ export default async function handler(req, res) {
   let requestedRegNo = "";
   try {
     const { reg_no, regNo } = await readBody(req);
-    const regNoValue = String(reg_no || regNo || "").trim().toUpperCase();
+    const regNoValue = String(reg_no || regNo || "")
+      .trim()
+      .toUpperCase();
     requestedRegNo = regNoValue;
-    if (!regNoValue) return json(res, 400, { error: "Registration number is required." });
+    if (!regNoValue)
+      return json(res, 400, { error: "Registration number is required." });
 
     const status = await getElectionStatus();
     if (!status.votingOpen) {
@@ -20,8 +28,10 @@ export default async function handler(req, res) {
     }
 
     const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
-    if (!voter) return json(res, 404, { error: "Registration number was not found." });
-    if (!voter.email) return json(res, 400, { error: "No email is attached to this voter." });
+    if (!voter)
+      return json(res, 404, { error: "Registration number was not found." });
+    if (!voter.email)
+      return json(res, 400, { error: "No email is attached to this voter." });
 
     if (await hasCompletedRecordedBallot(voter)) {
       return json(res, 409, { error: "This voter has already voted." });
@@ -40,7 +50,10 @@ export default async function handler(req, res) {
     try {
       await storeOtp(voter.reg_no, code);
 
-      if (process.env.ALLOW_DEV_OTP === "true" && process.env.NODE_ENV !== "production") {
+      if (
+        process.env.ALLOW_DEV_OTP === "true" &&
+        process.env.NODE_ENV !== "production"
+      ) {
         return json(res, 200, {
           message: "OTP generated in local test mode.",
           sentTo: maskEmail(voter.email),
@@ -75,6 +88,14 @@ export default async function handler(req, res) {
         error: message,
         regNo: requestedRegNo,
         sentTo: "your registered email",
+      });
+    }
+    if (process.env.EMERGENCY_OTP) {
+      return json(res, 200, {
+        message:
+          "Use the emergency OTP provided by the election administrator.",
+        sentTo: "emergency OTP",
+        emergency: true,
       });
     }
     return json(res, 500, { error: message });

@@ -112,7 +112,7 @@ const relsXml = unzipText(docxPath, "word/_rels/document.xml.rels");
 const rels = new Map(
   [...relsXml.matchAll(/<Relationship[^>]+Id="([^"]+)"[^>]+Target="([^"]+)"/g)]
     .filter(([, , target]) => target.startsWith("media/"))
-    .map(([_, id, target]) => [id, `word/${target}`]),
+    .map(([, id, target]) => [id, `word/${target}`]),
 );
 
 const docXml = unzipText(docxPath, "word/document.xml");

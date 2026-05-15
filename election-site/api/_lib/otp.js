@@ -64,75 +64,94 @@ export async function verifyOtp(regNo, code) {
 }
 
 export async function sendOtpEmail(voter, code) {
-  if (process.env.RESEND_API_KEY && process.env.EMAIL_PROVIDER !== "brevo") {
-    const response = await fetch("https://api.resend.com/emails", {
+  const subject = "PANS UniZik Election OTP";
+  const text = `Your PANS UniZik election login OTP is ${code}. Keep this code safe. It remains valid until you use it to log in and vote.`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5">
+      <h2>PANS UniZik Election Login</h2>
+      <p>Hello ${voter.name || voter.reg_no},</p>
+      <p>Your login OTP is:</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
+      <p>Keep this code safe. It remains valid until you use it to log in and vote.</p>
+    </div>
+  `;
+
+  if (process.env.BREVO_API_KEY) {
+    const sender = parseSender(
+      process.env.BREVO_FROM ||
+        process.env.SMTP_FROM ||
+        "PANS UniZik Election <noreply@example.com>",
+    );
+
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "api-key": process.env.BREVO_API_KEY,
         "Content-Type": "application/json",
+        accept: "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || "PANS UniZik Election <onboarding@resend.dev>",
-        to: [voter.email],
-        subject: "PANS UniZik Election OTP",
-        text: `Your PANS UniZik election login OTP is ${code}. Keep this code safe. It remains valid until you use it to log in and vote.`,
-        html: `
-          <div style="font-family:Arial,sans-serif;line-height:1.5">
-            <h2>PANS UniZik Election Login</h2>
-            <p>Hello ${voter.name || voter.reg_no},</p>
-            <p>Your login OTP is:</p>
-            <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
-            <p>Keep this code safe. It remains valid until you use it to log in and vote.</p>
-          </div>
-        `,
+        sender,
+        to: [{ email: voter.email, name: voter.name || voter.reg_no }],
+        subject,
+        textContent: text,
+        htmlContent: html,
       }),
     });
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data?.message || "Resend email request failed.");
+      throw new Error(data?.message || "Brevo email request failed.");
     }
 
-    console.log("OTP email accepted by Resend", {
+    console.log("OTP email accepted by Brevo API", {
       to: voter.email,
-      id: data.id,
+      id: data.messageId,
     });
 
     return {
-      messageId: data.id,
+      messageId: data.messageId,
       accepted: [voter.email],
       rejected: [],
-      response: "Accepted by Resend",
+      response: "Accepted by Brevo API",
     };
   }
 
+  const smtpConfig = {
+    host: process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST,
+    port: process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || 587,
+    user: process.env.SMTP_USER || process.env.BREVO_SMTP_USER,
+    pass: process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS,
+    from: process.env.SMTP_FROM || process.env.BREVO_FROM,
+  };
+  const missing = Object.entries(smtpConfig)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+  if (missing.length) {
+    throw new Error(
+      `Missing email configuration: ${missing.join(", ")}. Set BREVO_API_KEY + BREVO_FROM, or SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.`,
+    );
+  }
+
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_PORT) === "465",
+    host: smtpConfig.host,
+    port: Number(smtpConfig.port),
+    secure: String(smtpConfig.port) === "465",
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: smtpConfig.user,
+      pass: smtpConfig.pass,
     },
   });
 
   const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+    from: smtpConfig.from,
     to: voter.email,
-    subject: "PANS UniZik Election OTP",
-    text: `Your PANS UniZik election login OTP is ${code}. Keep this code safe. It remains valid until you use it to log in and vote.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.5">
-        <h2>PANS UniZik Election Login</h2>
-        <p>Hello ${voter.name || voter.reg_no},</p>
-        <p>Your login OTP is:</p>
-        <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
-        <p>Keep this code safe. It remains valid until you use it to log in and vote.</p>
-      </div>
-    `,
+    subject,
+    text,
+    html,
   });
 
   console.log("OTP email accepted by SMTP provider", {
@@ -144,6 +163,21 @@ export async function sendOtpEmail(voter, code) {
   });
 
   return info;
+}
+
+function parseSender(value) {
+  const sender = String(value || "").trim();
+  const match = sender.match(/^(.*)<([^>]+)>$/);
+  if (match) {
+    return {
+      name: match[1].trim().replace(/^"|"$/g, "") || undefined,
+      email: match[2].trim(),
+    };
+  }
+  return {
+    name: "PANS UniZik Election",
+    email: sender,
+  };
 }
 
 export function maskEmail(email) {

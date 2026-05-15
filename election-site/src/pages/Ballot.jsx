@@ -1,5 +1,5 @@
 import { CheckCircle, LogOut, UserRound } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
@@ -93,14 +93,14 @@ export default function Ballot() {
 
   const voterLevel = normalizeLevel(voter?.level);
 
-  const isPostEligible = (post) => {
+  const isPostEligible = useCallback((post) => {
     const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
     return !eligibleLevel || eligibleLevel === voterLevel;
-  };
+  }, [voterLevel]);
 
   const selectablePosts = useMemo(
     () => posts.filter(isPostEligible),
-    [posts, voterLevel],
+    [posts, isPostEligible],
   );
   const selectedCount = selectablePosts.filter((post) => {
     const value = selections[post.id];

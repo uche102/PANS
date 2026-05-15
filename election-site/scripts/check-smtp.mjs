@@ -1,29 +1,37 @@
 import nodemailer from "nodemailer";
 
-const required = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"];
-const missing = required.filter((name) => !process.env[name]);
+const smtpConfig = {
+  host: process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST,
+  port: process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || 587,
+  user: process.env.SMTP_USER || process.env.BREVO_SMTP_USER,
+  pass: process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS,
+  from: process.env.SMTP_FROM || process.env.BREVO_FROM,
+};
+const missing = Object.entries(smtpConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
 
 if (missing.length) {
-  console.error(`Missing SMTP environment variables: ${missing.join(", ")}`);
+  console.error(`Missing SMTP configuration: ${missing.join(", ")}`);
   process.exit(1);
 }
 
-const to = process.argv[2] || process.env.SMTP_TEST_TO || process.env.SMTP_USER;
+const to = process.argv[2] || process.env.SMTP_TEST_TO || smtpConfig.user;
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: String(process.env.SMTP_PORT) === "465",
+  host: smtpConfig.host,
+  port: Number(smtpConfig.port),
+  secure: String(smtpConfig.port) === "465",
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: smtpConfig.user,
+    pass: smtpConfig.pass,
   },
 });
 
 await transporter.verify();
 
 const info = await transporter.sendMail({
-  from: process.env.SMTP_FROM,
+  from: smtpConfig.from,
   to,
   subject: "PANS UniZik SMTP test",
   text: "SMTP is configured correctly for the PANS UniZik election site.",

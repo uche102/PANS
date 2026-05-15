@@ -1,6 +1,6 @@
 # PANS UniZik Election Site
 
-Vite React election portal with Vercel serverless API routes, Supabase database storage, and Nodemailer OTP email login.
+Vite React election portal with Vercel serverless API routes, Supabase database storage, and Brevo/Nodemailer OTP email login.
 
 ## Features
 
@@ -36,11 +36,11 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 4. Verify SMTP:
 
    ```bash
-   SMTP_HOST="smtp.gmail.com" \
-   SMTP_PORT="465" \
-   SMTP_USER="your-email@gmail.com" \
-   SMTP_PASS="your-16-character-app-password" \
-   SMTP_FROM="PANS UniZik Election <your-email@gmail.com>" \
+   SMTP_HOST="smtp-relay.brevo.com" \
+   SMTP_PORT="587" \
+   SMTP_USER="your-brevo-smtp-login" \
+   SMTP_PASS="your-brevo-smtp-key" \
+   SMTP_FROM="PANS UniZik Election <verified-sender@example.com>" \
    npm run check:smtp -- your-test-recipient@example.com
    ```
 
@@ -67,8 +67,6 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`
-- `RESEND_API_KEY`
-- `RESEND_FROM`
 - `ADMIN_PASSWORD`
 - `ADMIN_SESSION_SECRET`
 - `VOTER_SESSION_SECRET`
@@ -76,6 +74,8 @@ Vite React election portal with Vercel serverless API routes, Supabase database 
 - `CORS_ORIGIN`
 - `COOKIE_SAMESITE`
 - `VITE_API_BASE_URL`
+
+Instead of `SMTP_*`, you may use `BREVO_API_KEY` plus `BREVO_FROM`, or Brevo SMTP aliases: `BREVO_SMTP_HOST`, `BREVO_SMTP_PORT`, `BREVO_SMTP_USER`, `BREVO_SMTP_PASS`, and `BREVO_FROM`.
 
 Do not expose the service-role key or email API keys in frontend code. They are used only inside `/api`.
 

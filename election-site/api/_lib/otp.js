@@ -118,7 +118,7 @@ export async function sendOtpEmail(voter, code) {
   }
 
   const smtpConfig = {
-    host: process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST,
+    host: normalizeSmtpHost(process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST),
     port: process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || 587,
     user: process.env.SMTP_USER || process.env.BREVO_SMTP_USER,
     pass: process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS,
@@ -163,6 +163,12 @@ export async function sendOtpEmail(voter, code) {
   });
 
   return info;
+}
+
+function normalizeSmtpHost(host) {
+  const value = String(host || "").trim();
+  if (value === "smtp.brevo.com") return "smtp-relay.brevo.com";
+  return value;
 }
 
 function parseSender(value) {

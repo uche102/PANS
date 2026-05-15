@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
 const smtpConfig = {
-  host: process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST,
+  host: normalizeSmtpHost(process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST),
   port: process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || 587,
   user: process.env.SMTP_USER || process.env.BREVO_SMTP_USER,
   pass: process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS,
@@ -38,3 +38,9 @@ const info = await transporter.sendMail({
 });
 
 console.log(`SMTP verified. Test email sent to ${to}. Message id: ${info.messageId}`);
+
+function normalizeSmtpHost(host) {
+  const value = String(host || "").trim();
+  if (value === "smtp.brevo.com") return "smtp-relay.brevo.com";
+  return value;
+}

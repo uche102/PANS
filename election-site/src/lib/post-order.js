@@ -22,6 +22,7 @@ export function positionRank(post) {
   if (title.includes("editor in chief")) return 12;
   if (title.includes("deputy director of health")) return 13;
   if (title.includes("director of health")) return 14;
+  if (title.includes("assistant pro")) return 15;
   if (title.includes("public relations officer 2") || /\bpro 2\b/.test(title)) return 15;
   if (title.includes("public relations officer 1") || /\bpro 1\b/.test(title)) return 16;
   if (title.includes("financial secretary")) return 17;

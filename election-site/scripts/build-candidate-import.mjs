@@ -38,6 +38,13 @@ function cleanTitle(title) {
     .replace(/\s+Candidate$/i, "")
     .replace(/\s+/g, " ")
     .trim()
+    .replace(/^Ass\.?\s+Director\s+of\s+Socials$/i, "Assistant Director of Socials")
+    .replace(/^Asst\.?\s+Director\s+of\s+Socials$/i, "Assistant Director of Socials")
+    .replace(/^Asst\.?\s+Director\s+of\s+Sports$/i, "Assistant Director of Sports")
+    .replace(/^Asst\.?\s+Director\s+of\s+Academics$/i, "Assistant Director of Academics")
+    .replace(/^Assistant\s+PRO$/i, "Assistant PRO")
+    .replace(/^Public Relations Officer 2$/i, "Assistant PRO")
+    .replace(/^PRO\s*1$/i, "Public Relations Officer 1")
     .replace(/^Assistant Editor[- ]in[- ]chief$/i, "Associate Editor-in-Chief")
     .replace(/^vice president$/i, "Vice President")
     .replace(/^House of representative\b/i, "House of Representatives")
@@ -62,6 +69,7 @@ function postOrder(title) {
     ["editor in chief", 12],
     ["deputy director of health", 13],
     ["director of health", 14],
+    ["assistant pro", 15],
     ["public relations officer 2", 15],
     ["public relations officer 1", 16],
     ["financial secretary", 17],
@@ -87,6 +95,17 @@ function normalizePost(title) {
     .replace(/\b400L HOR\b/i, "400L HOR")
     .replace(/\b300L HOR\b/i, "300L HOR")
     .replace(/\b200L HOR\b/i, "200L HOR");
+}
+
+const titleCorrections = new Map([
+  ["agbo princewill izuchukwu", "Assistant Director of Socials"],
+  ["agbo princewill", "Assistant Director of Socials"],
+  ["agwuncha chisom ugochukwu", "Assistant PRO"],
+  ["chukwunenye chisom divine-gift", "Assistant PRO"],
+]);
+
+function correctedPost(name, title) {
+  return titleCorrections.get(name.toLowerCase()) || title;
 }
 
 const relsXml = unzipText(docxPath, "word/_rels/document.xml.rels");
@@ -155,19 +174,20 @@ const rows = [];
 const seen = new Set();
 
 for (const candidate of candidates) {
-  const key = `${candidate.name.toLowerCase()}|${candidate.title.toLowerCase()}`;
+  const candidateTitle = correctedPost(candidate.name, candidate.title);
+  const key = `${candidate.name.toLowerCase()}|${candidateTitle.toLowerCase()}`;
   if (seen.has(key)) continue;
   seen.add(key);
-  const filename = `${slug(candidate.title)}-${slug(candidate.name)}.jpeg`;
+  const filename = `${slug(candidateTitle)}-${slug(candidate.name)}.jpeg`;
   fs.writeFileSync(path.join(publicDir, filename), unzipBuffer(docxPath, candidate.source));
   rows.push({
-    post: candidate.title,
-    eligible_level: eligibleLevel(candidate.title),
-    post_order: postOrder(candidate.title),
+    post: candidateTitle,
+    eligible_level: eligibleLevel(candidateTitle),
+    post_order: postOrder(candidateTitle),
     name: candidate.name,
-    tagline: candidate.title,
+    tagline: candidateTitle,
     image_url: `/candidates/${filename}`,
-    display_order: rows.filter((row) => row.post === candidate.title).length + 1,
+    display_order: rows.filter((row) => row.post === candidateTitle).length + 1,
   });
 }
 
@@ -185,6 +205,34 @@ for (const [name, title, source] of extras) {
     name,
     tagline: normalizedTitle,
     image_url: `/candidates/${filename}`,
+    display_order: rows.filter((row) => row.post === normalizedTitle).length + 1,
+  });
+}
+
+const noPhotoCandidates = [
+  ["Nwonyia Mary", "200L HOR"],
+  ["Nwanoruio Joshua", "500L HOR"],
+  ["Okafor Ikechukwu", "500L HOR"],
+  ["Ozuzu Nnaemeka", "500L HOR"],
+  ["Ezeofor Chisom", "Assistant Secretary General"],
+  ["Okeke Angela", "Assistant Secretary General"],
+  ["Martins Chinonso", "Assistant Director of Academics"],
+  ["Ukwuoma Emmanuel", "Editor-in-Chief"],
+  ["Anigbogu Somtochukwu", "Director of Health"],
+];
+
+for (const [name, title] of noPhotoCandidates) {
+  const normalizedTitle = normalizePost(title);
+  const key = `${name.toLowerCase()}|${normalizedTitle.toLowerCase()}`;
+  if (seen.has(key)) continue;
+  seen.add(key);
+  rows.push({
+    post: normalizedTitle,
+    eligible_level: eligibleLevel(normalizedTitle),
+    post_order: postOrder(normalizedTitle),
+    name,
+    tagline: normalizedTitle,
+    image_url: "",
     display_order: rows.filter((row) => row.post === normalizedTitle).length + 1,
   });
 }

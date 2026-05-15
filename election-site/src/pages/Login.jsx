@@ -129,8 +129,8 @@ export default function Login() {
   async function verifyOtp(event) {
     event.preventDefault();
     setError("");
-    if (otp.length !== 6) {
-      setError("Enter the 6-digit OTP sent to your email.");
+    if (!otp.trim()) {
+      setError("Enter your OTP.");
       return;
     }
 
@@ -166,14 +166,20 @@ export default function Login() {
                   <User size={18} />
                   <input
                     value={regNo}
-                    onChange={(event) => setRegNo(event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      setRegNo(event.target.value.toUpperCase())
+                    }
                     placeholder="Enter your reg no"
                     autoComplete="username"
                   />
                 </div>
               </label>
               {error && <p className="error-text">{error}</p>}
-              <button className="primary-button" disabled={loading} onClick={requestOtp}>
+              <button
+                className="primary-button"
+                disabled={loading}
+                onClick={requestOtp}
+              >
                 {loading ? "Sending OTP..." : "Send OTP"}
               </button>
             </div>
@@ -194,10 +200,12 @@ export default function Login() {
                   <Lock size={18} />
                   <input
                     value={otp}
-                    onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))}
+                    onChange={(event) =>
+                      setOtp(event.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="000000"
-                    inputMode="numeric"
-                    maxLength={6}
+                    inputMode="text"
+                    maxLength={12}
                     autoComplete="one-time-code"
                   />
                 </div>
@@ -206,7 +214,12 @@ export default function Login() {
               <button className="primary-button" disabled={loading}>
                 {loading ? "Verifying..." : "Login to Vote"}
               </button>
-              <button type="button" className="ghost-button" disabled={loading} onClick={requestOtp}>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={loading}
+                onClick={requestOtp}
+              >
                 {loading ? "Sending..." : "Resend OTP"}
               </button>
               <button

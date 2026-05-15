@@ -72,7 +72,7 @@ export default function Ballot() {
       }),
     [posts, voterLevel],
   );
-  const selectedCount = Object.keys(selections).length;
+  const selectedCount = selectablePosts.filter((post) => selections[post.id]).length;
   const canSubmit =
     votingOpen && selectablePosts.length > 0 && selectedCount === selectablePosts.length;
 
@@ -132,25 +132,20 @@ export default function Ballot() {
           </span>
         </div>
 
-        {posts.length === 0 && (
-          <section className="empty-state">No active election posts have been added yet.</section>
+        {selectablePosts.length === 0 && (
+          <section className="empty-state">No active election posts are available for your level.</section>
         )}
 
         <div className="post-list">
-          {posts.map((post) => (
+          {selectablePosts.map((post) => (
             <section
               className={`post-section ${post.title.toLowerCase().includes("squid game") ? "post-section-featured" : ""}`}
               key={post.id}
             >
               <h2>{post.title}</h2>
-              {normalizeLevel(inferEligibleLevel(post)) && normalizeLevel(inferEligibleLevel(post)) !== voterLevel && (
-                <p className="level-lock">Visible only. Voting is limited to {inferEligibleLevel(post)} voters.</p>
-              )}
               <div className="candidate-grid">
                 {post.candidates.map((candidate) => {
                   const selected = selections[post.id] === candidate.id;
-                  const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
-                  const canSelectPost = !eligibleLevel || eligibleLevel === voterLevel;
                   return (
                     <button
                       type="button"
@@ -158,7 +153,7 @@ export default function Ballot() {
                       className={`candidate-card ${selected ? "selected" : ""} ${
                         post.title.toLowerCase().includes("squid game") ? "candidate-card-large" : ""
                       }`}
-                      disabled={!votingOpen || submitting || !canSelectPost}
+                      disabled={!votingOpen || submitting}
                       onClick={() =>
                         setSelections((current) => ({ ...current, [post.id]: candidate.id }))
                       }
@@ -172,7 +167,7 @@ export default function Ballot() {
                       </div>
                       <strong>{candidate.name}</strong>
                       {candidate.tagline && <span>{candidate.tagline}</span>}
-                      <small>{!canSelectPost ? "Not for your level" : selected ? "Selected" : "Tap to select"}</small>
+                      <small>{selected ? "Selected" : "Tap to select"}</small>
                     </button>
                   );
                 })}

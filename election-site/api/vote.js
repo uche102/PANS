@@ -47,12 +47,12 @@ export default async function handler(req, res) {
     let posts;
     try {
       posts = await supabaseRequest("posts", {
-        query: { select: "id,title,eligible_level", is_active: "eq.true" },
+        query: { select: "id,title,eligible_level", is_active: "eq.true", title: "not.like.__PANS_ELECTION_CONTROL__:%" },
       });
     } catch (error) {
       if (!String(error.message || "").includes("eligible_level")) throw error;
       posts = await supabaseRequest("posts", {
-        query: { select: "id,title", is_active: "eq.true" },
+        query: { select: "id,title", is_active: "eq.true", title: "not.like.__PANS_ELECTION_CONTROL__:%" },
       });
     }
     const voterLevel = normalizeLevel(voterRecord.level);

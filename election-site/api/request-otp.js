@@ -82,6 +82,14 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     const message = error.message || "Could not send OTP.";
+    console.error("Request OTP failed", {
+      regNo: requestedRegNo,
+      message,
+      code: error.code,
+      command: error.command,
+      responseCode: error.responseCode,
+      response: error.response,
+    });
     if (message.includes("already been sent to this registration number")) {
       return json(res, 409, {
         code: "PENDING_OTP",
@@ -96,6 +104,29 @@ export default async function handler(req, res) {
           "Use the emergency OTP provided by the election administrator.",
         sentTo: "emergency OTP",
         emergency: true,
+      });
+    }
+    if (
+      error.code === "EAUTH" ||
+      error.responseCode === 535 ||
+      message.toLowerCase().includes("authentication failed")
+    ) {
+      return json(res, 500, {
+        code: "EMAIL_AUTH_FAILED",
+        error:
+          "Brevo rejected the email login. Use BREVO_API_KEY + BREVO_FROM, or set SMTP_USER to your Brevo SMTP login and SMTP_PASS to your Brevo SMTP key.",
+      });
+    }
+    if (
+      error.code === "ETIMEDOUT" ||
+      error.code === "ECONNECTION" ||
+      error.code === "EDNS" ||
+      message.toLowerCase().includes("timeout")
+    ) {
+      return json(res, 500, {
+        code: "EMAIL_CONNECTION_FAILED",
+        error:
+          "Could not connect to Brevo email service. Confirm SMTP_HOST=smtp-relay.brevo.com and SMTP_PORT=587, or use BREVO_API_KEY + BREVO_FROM.",
       });
     }
     return json(res, 500, { error: message });

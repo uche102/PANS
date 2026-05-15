@@ -76,7 +76,8 @@ export async function sendOtpEmail(voter, code) {
     </div>
   `;
 
-  if (process.env.BREVO_API_KEY) {
+  const brevoApiKey = getBrevoApiKey();
+  if (brevoApiKey) {
     const sender = parseSender(
       process.env.BREVO_FROM ||
         process.env.SMTP_FROM ||
@@ -86,7 +87,7 @@ export async function sendOtpEmail(voter, code) {
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        "api-key": process.env.BREVO_API_KEY,
+        "api-key": brevoApiKey,
         "Content-Type": "application/json",
         accept: "application/json",
       },
@@ -163,6 +164,16 @@ export async function sendOtpEmail(voter, code) {
   });
 
   return info;
+}
+
+function getBrevoApiKey() {
+  const explicitKey = String(process.env.BREVO_API_KEY || "").trim();
+  if (explicitKey) return explicitKey;
+
+  const smtpPass = String(process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS || "").trim();
+  if (smtpPass.startsWith("xkeysib-")) return smtpPass;
+
+  return "";
 }
 
 function normalizeSmtpHost(host) {

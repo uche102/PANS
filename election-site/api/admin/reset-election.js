@@ -1,5 +1,5 @@
 import { json, methodNotAllowed, readBody } from "../_lib/http.js";
-import { positionRank } from "../_lib/post-order.js";
+import { inferEligibleLevel, positionRank } from "../_lib/post-order.js";
 import { requireAdmin } from "../_lib/session.js";
 import { supabaseRequest } from "../_lib/supabase.js";
 
@@ -70,14 +70,20 @@ export default async function handler(req, res) {
 
         const postKey = `${title}\u0000${eligible_level || ""}`;
         if (!importedPosts.has(postKey)) {
+          const postPayload = {
+            title,
+            eligible_level: eligible_level || inferEligibleLevel({ title }),
+            display_order: Number(item.post_order || item.group_order || positionRank({ title })),
+            is_active: true,
+          };
           const [post] = await supabaseRequest("posts", {
             method: "POST",
-            body: {
-              title,
-              eligible_level,
-              display_order: Number(item.post_order || item.group_order || positionRank({ title })),
-              is_active: true,
-            },
+            body: postPayload,
+          }).catch(async (error) => {
+            if (!String(error.message || "").includes("eligible_level")) throw error;
+            const fallbackPayload = { ...postPayload };
+            delete fallbackPayload.eligible_level;
+            return supabaseRequest("posts", { method: "POST", body: fallbackPayload });
           });
           importedPosts.set(postKey, post.id);
         }

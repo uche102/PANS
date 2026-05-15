@@ -23,6 +23,13 @@ export function positionRank(post) {
   return 1000;
 }
 
+export function inferEligibleLevel(post) {
+  const title = normalizedTitle(post);
+  const match = title.match(/\b(200|300|400|500)\s*(l|level)\b/);
+  if (!match) return post?.eligible_level || null;
+  return `${match[1]}L`;
+}
+
 export function sortPostsByHierarchy(posts) {
   return [...posts].sort((a, b) => {
     const rankDiff = positionRank(a) - positionRank(b);

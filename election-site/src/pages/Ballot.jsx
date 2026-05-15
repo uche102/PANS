@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
+import { inferEligibleLevel } from "../lib/post-order";
 
 function normalizeLevel(value) {
   return String(value || "")
@@ -66,7 +67,7 @@ export default function Ballot() {
   const selectablePosts = useMemo(
     () =>
       posts.filter((post) => {
-        const eligibleLevel = normalizeLevel(post.eligible_level);
+        const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
         return !eligibleLevel || eligibleLevel === voterLevel;
       }),
     [posts, voterLevel],
@@ -142,13 +143,13 @@ export default function Ballot() {
               key={post.id}
             >
               <h2>{post.title}</h2>
-              {normalizeLevel(post.eligible_level) && normalizeLevel(post.eligible_level) !== voterLevel && (
-                <p className="level-lock">Visible only. Voting is limited to {post.eligible_level} voters.</p>
+              {normalizeLevel(inferEligibleLevel(post)) && normalizeLevel(inferEligibleLevel(post)) !== voterLevel && (
+                <p className="level-lock">Visible only. Voting is limited to {inferEligibleLevel(post)} voters.</p>
               )}
               <div className="candidate-grid">
                 {post.candidates.map((candidate) => {
                   const selected = selections[post.id] === candidate.id;
-                  const eligibleLevel = normalizeLevel(post.eligible_level);
+                  const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
                   const canSelectPost = !eligibleLevel || eligibleLevel === voterLevel;
                   return (
                     <button

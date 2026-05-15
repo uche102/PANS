@@ -1,5 +1,6 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
 import { getElectionStatus } from "./_lib/election-status.js";
+import { inferEligibleLevel } from "./_lib/post-order.js";
 import { requireVoter } from "./_lib/session.js";
 import { getSingle, insertRows, supabaseRequest } from "./_lib/supabase.js";
 
@@ -43,12 +44,20 @@ export default async function handler(req, res) {
       return json(res, 404, { error: "Voter not found." });
     }
 
-    const posts = await supabaseRequest("posts", {
-      query: { select: "id,eligible_level", is_active: "eq.true" },
-    });
+    let posts;
+    try {
+      posts = await supabaseRequest("posts", {
+        query: { select: "id,title,eligible_level", is_active: "eq.true" },
+      });
+    } catch (error) {
+      if (!String(error.message || "").includes("eligible_level")) throw error;
+      posts = await supabaseRequest("posts", {
+        query: { select: "id,title", is_active: "eq.true" },
+      });
+    }
     const voterLevel = normalizeLevel(voterRecord.level);
     const eligiblePosts = posts.filter((post) => {
-      const eligibleLevel = normalizeLevel(post.eligible_level);
+      const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
       return !eligibleLevel || eligibleLevel === voterLevel;
     });
     const ineligiblePostIds = posts

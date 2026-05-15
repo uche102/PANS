@@ -166,6 +166,38 @@ export async function sendOtpEmail(voter, code) {
   return info;
 }
 
+export function getEmailConfigStatus() {
+  const brevoApiKey = getBrevoApiKey();
+  const smtpHost = normalizeSmtpHost(process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST);
+  const smtpPort = String(process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || 587);
+  const from = process.env.BREVO_FROM || process.env.SMTP_FROM || "";
+
+  return {
+    provider: brevoApiKey ? "brevo-api" : "smtp",
+    env: {
+      BREVO_API_KEY: Boolean(process.env.BREVO_API_KEY),
+      SENDINBLUE_API_KEY: Boolean(process.env.SENDINBLUE_API_KEY),
+      BREVO_KEY: Boolean(process.env.BREVO_KEY),
+      EMAIL_API_KEY: Boolean(process.env.EMAIL_API_KEY),
+      BREVO_FROM: Boolean(process.env.BREVO_FROM),
+      SMTP_HOST: Boolean(process.env.SMTP_HOST),
+      SMTP_PORT: Boolean(process.env.SMTP_PORT),
+      SMTP_USER: Boolean(process.env.SMTP_USER),
+      SMTP_PASS: Boolean(process.env.SMTP_PASS),
+      SMTP_FROM: Boolean(process.env.SMTP_FROM),
+      BREVO_SMTP_HOST: Boolean(process.env.BREVO_SMTP_HOST),
+      BREVO_SMTP_PORT: Boolean(process.env.BREVO_SMTP_PORT),
+      BREVO_SMTP_USER: Boolean(process.env.BREVO_SMTP_USER),
+      BREVO_SMTP_PASS: Boolean(process.env.BREVO_SMTP_PASS),
+    },
+    smtp: {
+      host: smtpHost || null,
+      port: smtpPort,
+      fromDomain: getEmailDomain(from),
+    },
+  };
+}
+
 function getBrevoApiKey() {
   const apiKeyNames = [
     "BREVO_API_KEY",
@@ -182,6 +214,11 @@ function getBrevoApiKey() {
   if (smtpPass.startsWith("xkeysib-")) return smtpPass;
 
   return "";
+}
+
+function getEmailDomain(value) {
+  const match = String(value || "").match(/@([^>\s]+)>?$/);
+  return match ? match[1] : null;
 }
 
 function normalizeSmtpHost(host) {

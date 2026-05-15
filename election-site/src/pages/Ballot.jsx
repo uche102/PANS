@@ -6,12 +6,13 @@ import { api } from "../lib/api";
 import { inferEligibleLevel } from "../lib/post-order";
 
 function normalizeLevel(value) {
-  return String(value || "")
+  const normalized = String(value || "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "")
     .replace(/LEVEL$/, "L")
     .replace(/LVL$/, "L");
+  return /^(200|300|400|500)$/.test(normalized) ? `${normalized}L` : normalized;
 }
 
 export default function Ballot() {

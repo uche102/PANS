@@ -5,12 +5,13 @@ import { requireVoter } from "./_lib/session.js";
 import { getSingle, insertRows, supabaseRequest } from "./_lib/supabase.js";
 
 function normalizeLevel(value) {
-  return String(value || "")
+  const normalized = String(value || "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "")
     .replace(/LEVEL$/, "L")
     .replace(/LVL$/, "L");
+  return /^(200|300|400|500)$/.test(normalized) ? `${normalized}L` : normalized;
 }
 
 export default async function handler(req, res) {

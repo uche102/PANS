@@ -13,7 +13,9 @@ function normalizePendingOtp(value) {
   const savedAt = Number(value.savedAt || 0);
   if (savedAt && Date.now() - savedAt > PENDING_OTP_MAX_AGE) return null;
   return {
-    regNo: String(value.regNo || "").trim().toUpperCase(),
+    regNo: String(value.regNo || "")
+      .trim()
+      .toUpperCase(),
     sentTo: value.sentTo || "your registered email",
     savedAt: savedAt || Date.now(),
   };
@@ -54,7 +56,9 @@ function readPendingOtp() {
   const stores = [sessionStorage, localStorage];
   for (const store of stores) {
     try {
-      const pending = normalizePendingOtp(JSON.parse(store.getItem(PENDING_OTP_KEY) || "null"));
+      const pending = normalizePendingOtp(
+        JSON.parse(store.getItem(PENDING_OTP_KEY) || "null"),
+      );
       if (pending) return pending;
     } catch {
       clearPendingOtp();
@@ -201,9 +205,14 @@ export default function Login() {
                   <input
                     value={otp}
                     onChange={(event) =>
-                      setOtp(event.target.value.replace(/\D/g, ""))
+                      setOtp(
+                        event.target.value
+                          .toUpperCase()
+                          .replace(/\s/g, "")
+                          .slice(0, 12),
+                      )
                     }
-                    placeholder="000000"
+                    placeholder="Enter OTP"
                     inputMode="text"
                     maxLength={12}
                     autoComplete="one-time-code"

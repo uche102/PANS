@@ -36,7 +36,10 @@ export default function Ballot() {
       }
 
       try {
-        const [meResult, election] = await Promise.allSettled([api.me(), api.election()]);
+        const [meResult, election] = await Promise.allSettled([
+          api.me(),
+          api.election(),
+        ]);
         const me = meResult.status === "fulfilled" ? meResult.value : null;
 
         if (me?.hasVoted) {
@@ -44,9 +47,7 @@ export default function Ballot() {
           return;
         }
 
-        setVoter(
-          me?.voter ? me.voter : JSON.parse(storedVoter),
-        );
+        setVoter(me?.voter ? me.voter : JSON.parse(storedVoter));
         if (election.status === "fulfilled") {
           setVotingOpen(election.value.votingOpen !== false);
           setPosts(election.value.posts);
@@ -65,17 +66,23 @@ export default function Ballot() {
   }, [navigate]);
 
   const voterLevel = normalizeLevel(voter?.level);
+
+  const isPostEligible = (post) => {
+    const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
+    return !eligibleLevel || eligibleLevel === voterLevel;
+  };
+
   const selectablePosts = useMemo(
-    () =>
-      posts.filter((post) => {
-        const eligibleLevel = normalizeLevel(inferEligibleLevel(post));
-        return !eligibleLevel || eligibleLevel === voterLevel;
-      }),
+    () => posts.filter(isPostEligible),
     [posts, voterLevel],
   );
-  const selectedCount = selectablePosts.filter((post) => selections[post.id]).length;
+  const selectedCount = selectablePosts.filter(
+    (post) => selections[post.id],
+  ).length;
   const canSubmit =
-    votingOpen && selectablePosts.length > 0 && selectedCount === selectablePosts.length;
+    votingOpen &&
+    selectablePosts.length > 0 &&
+    selectedCount === selectablePosts.length;
 
   const voterLabel = useMemo(() => {
     if (!voter) return "";
@@ -85,7 +92,9 @@ export default function Ballot() {
   async function submitVote() {
     setError("");
     if (!canSubmit) {
-      setError("Select one candidate for every post available to your level before submitting.");
+      setError(
+        "Select one candidate for every post available to your level before submitting.",
+      );
       return;
     }
 
@@ -134,53 +143,115 @@ export default function Ballot() {
         </div>
 
         {selectablePosts.length === 0 && (
-          <section className="empty-state">No active election posts are available for your level.</section>
+          <section className="empty-state">
+            No active election posts are available for your level.
+          </section>
         )}
 
         <div className="post-list">
-          {selectablePosts.map((post) => (
-            <section
-              className={`post-section ${post.title.toLowerCase().includes("squid game") ? "post-section-featured" : ""}`}
-              key={post.id}
-            >
-              <h2>{post.title}</h2>
-              <div className="candidate-grid">
-                {post.candidates.map((candidate) => {
-                  const selected = selections[post.id] === candidate.id;
-                  return (
-                    <button
-                      type="button"
-                      key={candidate.id}
-                      className={`candidate-card ${selected ? "selected" : ""} ${
-                        post.title.toLowerCase().includes("squid game") ? "candidate-card-large" : ""
-                      }`}
-                      disabled={!votingOpen || submitting}
-                      onClick={() =>
-                        setSelections((current) => ({ ...current, [post.id]: candidate.id }))
-                      }
+          {posts.map((post) => {
+            const isEligible = isPostEligible(post);
+            return (
+              <section
+                className={`post-section ${!isEligible ? "post-section-ineligible" : ""} ${post.title.toLowerCase().includes("squid game") ? "post-section-featured" : ""}`}
+                key={post.id}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <h2>{post.title}</h2>
+                  {!isEligible && (
+                    <span
+                      style={{
+                        fontSize: "0.875rem",
+                        color: "#666",
+                        backgroundColor: "#f0f0f0",
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "4px",
+                      }}
                     >
-                      <div className="candidate-avatar">
-                        {candidate.image_url ? (
-                          <img src={candidate.image_url} alt={candidate.name} />
-                        ) : (
-                          <UserRound size={post.title.toLowerCase().includes("squid game") ? 48 : 39} />
-                        )}
-                      </div>
-                      <strong>{candidate.name}</strong>
-                      {candidate.tagline && <span>{candidate.tagline}</span>}
-                      <small>{selected ? "Selected" : "Tap to select"}</small>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                      Not eligible for your level
+                    </span>
+                  )}
+                </div>
+                <div className="candidate-grid">
+                  {post.candidates.map((candidate) => {
+                    const selected = selections[post.id] === candidate.id;
+                    const canSelect = isEligible && votingOpen && !submitting;
+                    return (
+                      <button
+                        type="button"
+                        key={candidate.id}
+                        className={`candidate-card ${selected ? "selected" : ""} ${!isEligible ? "candidate-card-ineligible" : ""} ${
+                          post.title.toLowerCase().includes("squid game")
+                            ? "candidate-card-large"
+                            : ""
+                        }`}
+                        disabled={!canSelect}
+                        onClick={() =>
+                          isEligible &&
+                          setSelections((current) => ({
+                            ...current,
+                            [post.id]: candidate.id,
+                          }))
+                        }
+                        title={
+                          !isEligible
+                            ? `You are not eligible to vote for ${post.title}`
+                            : ""
+                        }
+                      >
+                        <div className="candidate-avatar">
+                          {candidate.image_url ? (
+                            <img
+                              src={candidate.image_url}
+                              alt={candidate.name}
+                            />
+                          ) : (
+                            <UserRound
+                              size={
+                                post.title.toLowerCase().includes("squid game")
+                                  ? 48
+                                  : 39
+                              }
+                            />
+                          )}
+                        </div>
+                        <strong>{candidate.name}</strong>
+                        {candidate.tagline && <span>{candidate.tagline}</span>}
+                        <small>
+                          {selected
+                            ? "Selected"
+                            : isEligible
+                              ? "Tap to select"
+                              : "Not eligible"}
+                        </small>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         {error && <p className="error-text">{error}</p>}
         <div className="sticky-action">
-          <button className="primary-button" disabled={!canSubmit || submitting} onClick={submitVote}>
-            {submitting ? "Submitting..." : votingOpen ? "Submit Ballot" : "Voting Closed"}
+          <button
+            className="primary-button"
+            disabled={!canSubmit || submitting}
+            onClick={submitVote}
+          >
+            {submitting
+              ? "Submitting..."
+              : votingOpen
+                ? "Submit Ballot"
+                : "Voting Closed"}
           </button>
         </div>
       </div>

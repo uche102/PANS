@@ -391,6 +391,19 @@ label span {
   opacity: 0.62;
 }
 
+.candidate-card-ineligible {
+  opacity: 0.5;
+  background-color: #f9f9f9;
+}
+
+.candidate-card-ineligible:hover {
+  border-color: var(--line);
+}
+
+.post-section-ineligible {
+  opacity: 0.75;
+}
+
 .level-lock {
   margin: 8px 0 0;
   color: #854d0e;

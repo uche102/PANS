@@ -8,17 +8,28 @@ function normalizedTitle(post) {
 export function positionRank(post) {
   const title = normalizedTitle(post);
 
-  if (/\b(hor|house of rep|house of representative|house of representatives)\b/.test(title)) return 10;
-  if (title.includes("assistant director")) return 20;
-  if (title.includes("director")) return 30;
-  if (title.includes("provost")) return 40;
-  if (title.includes("public relations officer 2") || /\bpro 2\b/.test(title)) return 50;
-  if (title.includes("public relations officer 1") || /\bpro 1\b/.test(title)) return 60;
-  if (title.includes("treasurer")) return 70;
-  if (title.includes("financial secretary")) return 80;
-  if (title.includes("secretary general")) return 90;
-  if (title.includes("vice president")) return 100;
-  if (title === "president" || /\bpresident\b/.test(title)) return 110;
+  if (/\b200\s*(l|level)\b.*\b(hor|house of rep|house of representative|house of representatives)\b/.test(title)) return 1;
+  if (/\b300\s*(l|level)\b.*\b(hor|house of rep|house of representative|house of representatives)\b/.test(title)) return 2;
+  if (/\b400\s*(l|level)\b.*\b(hor|house of rep|house of representative|house of representatives)\b/.test(title)) return 3;
+  if (/\b500\s*(l|level)\b.*\b(hor|house of rep|house of representative|house of representatives)\b/.test(title)) return 4;
+  if (title.includes("assistant director of socials")) return 5;
+  if (title.includes("director of socials")) return 6;
+  if (title.includes("assistant director of academics")) return 7;
+  if (title.includes("director of academics")) return 8;
+  if (title.includes("assistant director of sports")) return 9;
+  if (title.includes("director of sports")) return 10;
+  if (title.includes("associate editor in chief")) return 11;
+  if (title.includes("editor in chief")) return 12;
+  if (title.includes("deputy director of health")) return 13;
+  if (title.includes("director of health")) return 14;
+  if (title.includes("public relations officer 2") || /\bpro 2\b/.test(title)) return 15;
+  if (title.includes("public relations officer 1") || /\bpro 1\b/.test(title)) return 16;
+  if (title.includes("financial secretary")) return 17;
+  if (title.includes("treasurer")) return 18;
+  if (title.includes("assistant secretary general")) return 19;
+  if (title.includes("secretary general")) return 20;
+  if (title.includes("vice president")) return 21;
+  if (title === "president" || /\bpresident\b/.test(title)) return 22;
 
   return 1000;
 }

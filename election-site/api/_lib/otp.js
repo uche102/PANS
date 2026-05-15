@@ -167,8 +167,16 @@ export async function sendOtpEmail(voter, code) {
 }
 
 function getBrevoApiKey() {
-  const explicitKey = String(process.env.BREVO_API_KEY || "").trim();
-  if (explicitKey) return explicitKey;
+  const apiKeyNames = [
+    "BREVO_API_KEY",
+    "SENDINBLUE_API_KEY",
+    "BREVO_KEY",
+    "EMAIL_API_KEY",
+  ];
+  for (const name of apiKeyNames) {
+    const value = String(process.env[name] || "").trim();
+    if (value) return value;
+  }
 
   const smtpPass = String(process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS || "").trim();
   if (smtpPass.startsWith("xkeysib-")) return smtpPass;

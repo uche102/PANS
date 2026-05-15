@@ -126,7 +126,7 @@ export default async function handler(req, res) {
       return json(res, 500, {
         code: "EMAIL_CONNECTION_FAILED",
         error:
-          "Could not connect to Brevo email service. Confirm SMTP_HOST=smtp-relay.brevo.com and SMTP_PORT=587, or use BREVO_API_KEY + BREVO_FROM.",
+          "Could not connect to Brevo SMTP from Render. Set BREVO_API_KEY and BREVO_FROM to use Brevo's HTTPS email API instead of SMTP.",
       });
     }
     return json(res, 500, { error: message });

@@ -1,4 +1,5 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
+import { hasCompletedRecordedBallot } from "./_lib/ballot-status.js";
 import { verifyOtp } from "./_lib/otp.js";
 import { createVoterSession } from "./_lib/session.js";
 import { getSingle, supabaseRequest } from "./_lib/supabase.js";
@@ -21,8 +22,7 @@ export default async function handler(req, res) {
     const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
     if (!voter) return json(res, 404, { error: "Voter not found." });
 
-    const vote = await getSingle("votes", { reg_no: `eq.${regNoValue}` });
-    if (vote) {
+    if (await hasCompletedRecordedBallot(voter)) {
       return json(res, 409, { error: "This voter has already voted." });
     }
 

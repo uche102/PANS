@@ -1,4 +1,5 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
+import { hasCompletedRecordedBallot } from "./_lib/ballot-status.js";
 import { getElectionStatus } from "./_lib/election-status.js";
 import { createOtpCode, maskEmail, sendOtpEmail, storeOtp } from "./_lib/otp.js";
 import { getSingle, supabaseRequest } from "./_lib/supabase.js";
@@ -22,8 +23,7 @@ export default async function handler(req, res) {
     if (!voter) return json(res, 404, { error: "Registration number was not found." });
     if (!voter.email) return json(res, 400, { error: "No email is attached to this voter." });
 
-    const vote = await getSingle("votes", { reg_no: `eq.${regNoValue}` });
-    if (vote) {
+    if (await hasCompletedRecordedBallot(voter)) {
       return json(res, 409, { error: "This voter has already voted." });
     }
 

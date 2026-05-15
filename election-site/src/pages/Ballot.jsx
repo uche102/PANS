@@ -15,6 +15,32 @@ function normalizeLevel(value) {
   return /^(200|300|400|500)$/.test(normalized) ? `${normalized}L` : normalized;
 }
 
+function isHorPost(post) {
+  const title = String(post?.title || "").toLowerCase();
+  return (
+    title.includes("hor") ||
+    title.includes("house of rep") ||
+    title.includes("house of representative")
+  );
+}
+function getHorMaxSelections(post, voter) {
+  const level = String(voter?.level || "")
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
+  const is200Level =
+    level === "200" ||
+    level === "200L" ||
+    level === "200LVL" ||
+    level === "200LEVEL";
+
+  if (isHorPost(post) && is200Level) {
+    return 5;
+  }
+
+  return Infinity;
+}
+
 export default function Ballot() {
   const navigate = useNavigate();
   const [voter, setVoter] = useState(null);
@@ -76,9 +102,12 @@ export default function Ballot() {
     () => posts.filter(isPostEligible),
     [posts, voterLevel],
   );
-  const selectedCount = selectablePosts.filter(
-    (post) => selections[post.id],
-  ).length;
+  const selectedCount = selectablePosts.filter((post) => {
+    const value = selections[post.id];
+    return isHorPost(post)
+      ? Array.isArray(value) && value.length > 0
+      : Boolean(value);
+  }).length;
   const canSubmit =
     votingOpen &&
     selectablePosts.length > 0 &&
@@ -93,7 +122,7 @@ export default function Ballot() {
     setError("");
     if (!canSubmit) {
       setError(
-        "Select one candidate for every post available to your level before submitting.",
+        "Select candidate(s) for every post available to your level before submitting.",
       );
       return;
     }
@@ -107,6 +136,44 @@ export default function Ballot() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleSelect(post, candidateId) {
+    if (!isPostEligible(post) || !votingOpen || submitting) return;
+
+    setSelections((current) => {
+      if (isHorPost(post)) {
+        const selectedForPost = Array.isArray(current[post.id])
+          ? current[post.id]
+          : [];
+
+        const alreadySelected = selectedForPost.includes(candidateId);
+        const maxSelections = getHorMaxSelections(post, voter);
+
+        if (
+          Number.isFinite(maxSelections) &&
+          !alreadySelected &&
+          selectedForPost.length >= maxSelections
+        ) {
+          alert(
+            `200 level voters can only select a maximum of ${maxSelections} HOR candidates.`,
+          );
+          return current;
+        }
+
+        return {
+          ...current,
+          [post.id]: alreadySelected
+            ? selectedForPost.filter((id) => id !== candidateId)
+            : [...selectedForPost, candidateId],
+        };
+      }
+
+      return {
+        ...current,
+        [post.id]: candidateId,
+      };
+    });
   }
 
   function logout() {
@@ -181,7 +248,11 @@ export default function Ballot() {
                 </div>
                 <div className="candidate-grid">
                   {post.candidates.map((candidate) => {
-                    const selected = selections[post.id] === candidate.id;
+                    const hor = isHorPost(post);
+                    const value = selections[post.id];
+                    const selected = hor
+                      ? Array.isArray(value) && value.includes(candidate.id)
+                      : value === candidate.id;
                     const canSelect = isEligible && votingOpen && !submitting;
                     return (
                       <button
@@ -193,13 +264,7 @@ export default function Ballot() {
                             : ""
                         }`}
                         disabled={!canSelect}
-                        onClick={() =>
-                          isEligible &&
-                          setSelections((current) => ({
-                            ...current,
-                            [post.id]: candidate.id,
-                          }))
-                        }
+                        onClick={() => handleSelect(post, candidate.id)}
                         title={
                           !isEligible
                             ? `You are not eligible to vote for ${post.title}`
@@ -226,9 +291,13 @@ export default function Ballot() {
                         {candidate.tagline && <span>{candidate.tagline}</span>}
                         <small>
                           {selected
-                            ? "Selected"
+                            ? hor
+                              ? "Selected · tap to remove"
+                              : "Selected"
                             : isEligible
-                              ? "Tap to select"
+                              ? hor
+                                ? "Tap to select multiple"
+                                : "Tap to select"
                               : "Not eligible"}
                         </small>
                       </button>

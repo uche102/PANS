@@ -11,7 +11,18 @@ function normalizeLevel(value) {
     .replace(/\s+/g, "")
     .replace(/LEVEL$/, "L")
     .replace(/LVL$/, "L");
+
   return /^(200|300|400|500)$/.test(normalized) ? `${normalized}L` : normalized;
+}
+
+function isHorPost(post) {
+  const title = String(post?.title || "").toLowerCase();
+
+  return (
+    title.includes("hor") ||
+    title.includes("house of rep") ||
+    title.includes("house of representative")
+  );
 }
 
 export default async function handler(req, res) {
@@ -30,7 +41,9 @@ export default async function handler(req, res) {
       query: { reg_no: `eq.${voter.reg_no}`, select: "id", limit: "1" },
     });
     if (existingVotes.length > 0) {
-      return json(res, 409, { error: "This voter has already submitted a ballot." });
+      return json(res, 409, {
+        error: "This voter has already submitted a ballot.",
+      });
     }
 
     const { selections } = await readBody(req);
@@ -48,12 +61,20 @@ export default async function handler(req, res) {
     let posts;
     try {
       posts = await supabaseRequest("posts", {
-        query: { select: "id,title,eligible_level", is_active: "eq.true", title: "not.like.__PANS_ELECTION_CONTROL__:%" },
+        query: {
+          select: "id,title,eligible_level",
+          is_active: "eq.true",
+          title: "not.like.__PANS_ELECTION_CONTROL__:%",
+        },
       });
     } catch (error) {
       if (!String(error.message || "").includes("eligible_level")) throw error;
       posts = await supabaseRequest("posts", {
-        query: { select: "id,title", is_active: "eq.true", title: "not.like.__PANS_ELECTION_CONTROL__:%" },
+        query: {
+          select: "id,title",
+          is_active: "eq.true",
+          title: "not.like.__PANS_ELECTION_CONTROL__:%",
+        },
       });
     }
     const voterLevel = normalizeLevel(voterRecord.level);
@@ -66,6 +87,26 @@ export default async function handler(req, res) {
       .map((post) => String(post.id));
     const requiredPostIds = eligiblePosts.map((post) => String(post.id));
     const selectedPostIds = Object.keys(selections);
+    const horLimitError = eligiblePosts.find((post) => {
+      if (!isHorPost(post)) return false;
+      if (voterLevel !== "200L") return false;
+
+      const selected = selections[post.id] || selections[String(post.id)];
+      const selectedCount = Array.isArray(selected)
+        ? selected.filter(Boolean).length
+        : selected
+          ? 1
+          : 0;
+
+      return selectedCount > 5;
+    });
+
+    if (horLimitError) {
+      return json(res, 400, {
+        error:
+          "200 level voters can only select a maximum of 5 HOR candidates.",
+      });
+    }
 
     if (
       requiredPostIds.length === 0 ||
@@ -73,16 +114,27 @@ export default async function handler(req, res) {
       requiredPostIds.some((postId) => !selectedPostIds.includes(postId)) ||
       selectedPostIds.some((postId) => ineligiblePostIds.includes(postId))
     ) {
-      return json(res, 400, { error: "Please vote for every post available to your level." });
+      return json(res, 400, {
+        error: "Please vote for every post available to your level.",
+      });
     }
 
-    const rows = Object.entries(selections).map(([postId, candidateId]) => ({
-      reg_no: voter.reg_no,
-      post_id: postId,
-      candidate_id: candidateId,
-    }));
+    const rows = Object.entries(selections).flatMap(([postId, value]) => {
+      const candidateIdsForPost = Array.isArray(value) ? value : [value];
 
-    const candidateIds = Object.values(selections);
+      return candidateIdsForPost.filter(Boolean).map((candidateId) => ({
+        reg_no: voter.reg_no,
+        post_id: postId,
+        candidate_id: candidateId,
+      }));
+    });
+
+    if (!rows.length) {
+      return json(res, 400, { error: "Please select at least one candidate." });
+    }
+
+    const candidateIds = [...new Set(rows.map((row) => row.candidate_id))];
+
     const candidates = await supabaseRequest("candidates", {
       query: {
         select: "id,post_id,is_active",
@@ -90,6 +142,7 @@ export default async function handler(req, res) {
         is_active: "eq.true",
       },
     });
+
     const validSelections = rows.every((row) =>
       candidates.some(
         (candidate) =>
@@ -97,8 +150,11 @@ export default async function handler(req, res) {
           String(candidate.post_id) === String(row.post_id),
       ),
     );
+
     if (!validSelections) {
-      return json(res, 400, { error: "One or more selected candidates are invalid." });
+      return json(res, 400, {
+        error: "One or more selected candidates are invalid.",
+      });
     }
 
     const insertedVotes = await insertRows("votes", rows);
@@ -107,10 +163,17 @@ export default async function handler(req, res) {
     }
 
     const savedVotes = await supabaseRequest("votes", {
-      query: { reg_no: `eq.${voter.reg_no}`, select: "id", limit: String(requiredPostIds.length) },
+      query: {
+        reg_no: `eq.${voter.reg_no}`,
+        select: "id",
+        limit: String(rows.length),
+      },
     });
-    if (savedVotes.length !== requiredPostIds.length) {
-      throw new Error("Vote submission could not be confirmed. Please contact the election administrator.");
+
+    if (savedVotes.length !== rows.length) {
+      throw new Error(
+        "Vote submission could not be confirmed. Please contact the election administrator.",
+      );
     }
 
     await supabaseRequest("voters", {

@@ -9,33 +9,52 @@ export default async function handler(req, res) {
 
   try {
     const { reg_no, regNo, otp } = await readBody(req);
+
+    const regNoValue = String(reg_no || regNo || "")
+      .trim()
+      .toUpperCase();
+    const otpValue = String(otp || "").trim();
+
+    if (!regNoValue || !otpValue) {
+      return json(res, 400, {
+        error: "Registration number and OTP are required.",
+      });
+    }
+
     const emergencyOtp = process.env.EMERGENCY_OTP;
 
-    if (emergencyOtp && String(otp).trim() === emergencyOtp) {
-      const voter = await getSingle("voters", { reg_no: `eq.${reg_no}` });
+    if (emergencyOtp && otpValue === emergencyOtp) {
+      const voter = await getSingle("voters", { reg_no: `eq.${regNoValue}` });
 
       if (!voter) {
         return json(res, 404, { error: "Voter not found." });
       }
 
-      if (voter.ballot_submitted_at) {
+      if (await hasCompletedRecordedBallot(voter)) {
         return json(res, 409, { error: "This voter has already voted." });
       }
 
       const token = createVoterSession(res, voter);
 
+      await supabaseRequest("voters", {
+        method: "PATCH",
+        query: { reg_no: `eq.${regNoValue}` },
+        body: {
+          otp_verified_at: new Date().toISOString(),
+          ballot_submitted_at: null,
+        },
+      }).catch(() => {});
+
       return json(res, 200, {
         message: "OTP verified.",
-        voter,
+        voter: {
+          reg_no: voter.reg_no,
+          name: voter.name,
+          level: voter.level,
+        },
         token,
       });
-    }
-    const regNoValue = String(reg_no || regNo || "").trim().toUpperCase();
-    const otpValue = String(otp || "").trim();
-
-    if (!regNoValue || !otpValue) {
-      return json(res, 400, { error: "Registration number and OTP are required." });
-    }
+    } 
 
     const result = await verifyOtp(regNoValue, otpValue);
     if (!result.ok) return json(res, 400, { error: result.message });
@@ -65,6 +84,8 @@ export default async function handler(req, res) {
       token,
     });
   } catch (error) {
-    return json(res, 500, { error: error.message || "OTP verification failed." });
+    return json(res, 500, {
+      error: error.message || "OTP verification failed.",
+    });
   }
 }

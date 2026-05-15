@@ -11,8 +11,17 @@ async function request(path, options = {}) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
   const voterToken = sessionStorage.getItem("pansVoterToken");
   const adminToken = sessionStorage.getItem("pansAdminToken");
-  const authorization = options.authorization || voterToken || adminToken || "";
-  const { headers: providedHeaders, body, query, authorization: _ignoredAuthorization, ...rest } = options;
+  const isAdminRoute = path.startsWith("/api/admin");
+
+  const authorization =
+    options.authorization || (isAdminRoute ? adminToken : voterToken) || "";
+  const {
+    headers: providedHeaders,
+    body,
+    query,
+    authorization: _ignoredAuthorization,
+    ...rest
+  } = options;
   const headers = {
     "Content-Type": "application/json",
     ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
@@ -36,28 +45,48 @@ async function request(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new ApiError(data.error || data.message || "Request failed.", response.status, data);
+    throw new ApiError(
+      data.error || data.message || "Request failed.",
+      response.status,
+      data,
+    );
   }
   return data;
 }
 
 export const api = {
-  requestOtp: (regNo) => request("/api/request-otp", { method: "POST", body: { reg_no: regNo } }),
-  verifyOtp: (regNo, otp) => request("/api/verify-otp", { method: "POST", body: { reg_no: regNo, otp } }),
+  requestOtp: (regNo) =>
+    request("/api/request-otp", { method: "POST", body: { reg_no: regNo } }),
+  verifyOtp: (regNo, otp) =>
+    request("/api/verify-otp", {
+      method: "POST",
+      body: { reg_no: regNo, otp },
+    }),
   me: () => request("/api/me"),
   election: () => request("/api/election"),
-  vote: (selections) => request("/api/vote", { method: "POST", body: { selections } }),
-  adminLogin: (password) => request("/api/admin/login", { method: "POST", body: { password } }),
+  vote: (selections) =>
+    request("/api/vote", { method: "POST", body: { selections } }),
+  adminLogin: (password) =>
+    request("/api/admin/login", { method: "POST", body: { password } }),
   adminSession: () => request("/api/admin/session"),
   electionStatus: () => request("/api/admin/session"),
   setElectionStatus: (votingOpen) =>
     request("/api/admin/session", { method: "PATCH", body: { votingOpen } }),
   adminPosts: () => request("/api/admin/posts"),
-  resetElection: (items) => request("/api/admin/reset-election", { method: "POST", body: { items } }),
-  resetVotes: () => request("/api/admin/reset-election", { method: "POST", body: { items: "votes-only" } }),
+  resetElection: (items) =>
+    request("/api/admin/reset-election", { method: "POST", body: { items } }),
+  resetVotes: () =>
+    request("/api/admin/reset-election", {
+      method: "POST",
+      body: { items: "votes-only" },
+    }),
   savePost: (post) =>
-    request("/api/admin/posts", { method: post.id ? "PUT" : "POST", body: post }),
-  deletePost: (id) => request("/api/admin/posts", { method: "DELETE", body: { id } }),
+    request("/api/admin/posts", {
+      method: post.id ? "PUT" : "POST",
+      body: post,
+    }),
+  deletePost: (id) =>
+    request("/api/admin/posts", { method: "DELETE", body: { id } }),
   adminCandidates: () => request("/api/admin/candidates"),
   saveCandidate: (candidate) =>
     request("/api/admin/candidates", {
@@ -66,6 +95,7 @@ export const api = {
     }),
   deleteCandidate: (id) =>
     request("/api/admin/candidates", { method: "DELETE", body: { id } }),
-  votersVoted: (page = 1, perPage = 10) => request("/api/admin/voters-voted", { query: { page, perPage } }),
+  votersVoted: (page = 1, perPage = 10) =>
+    request("/api/admin/voters-voted", { query: { page, perPage } }),
   results: () => request("/api/admin/results"),
 };

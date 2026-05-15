@@ -11,14 +11,28 @@ import {
   Vote,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import Papa from "papaparse"; 
+import {
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
+import Papa from "papaparse";
 
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
 import { positionRank } from "../lib/post-order";
 
-const COLORS = ["#0f766e", "#2563eb", "#c2410c", "#7c3aed", "#be123c", "#15803d"];
+const COLORS = [
+  "#0f766e",
+  "#2563eb",
+  "#c2410c",
+  "#7c3aed",
+  "#be123c",
+  "#15803d",
+];
 
 function formatPercent(value) {
   if (!Number.isFinite(value)) return "0%";
@@ -52,8 +66,17 @@ export default function Admin() {
   const [votersHasNext, setVotersHasNext] = useState(false);
   const [votersLoading, setVotersLoading] = useState(false);
   const [resultsLoading, setResultsLoading] = useState(false);
-  const [electionStatus, setElectionStatus] = useState({ votingOpen: true, updatedAt: "" });
-  const [postForm, setPostForm] = useState({ id: "", title: "", eligible_level: "", display_order: 0, is_active: true });
+  const [electionStatus, setElectionStatus] = useState({
+    votingOpen: true,
+    updatedAt: "",
+  });
+  const [postForm, setPostForm] = useState({
+    id: "",
+    title: "",
+    eligible_level: "",
+    display_order: 0,
+    is_active: true,
+  });
   const [candidateForm, setCandidateForm] = useState(emptyCandidate([]));
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -68,6 +91,7 @@ export default function Admin() {
       setLoading(true);
       const data = await api.adminLogin(password);
       if (data.token) {
+        sessionStorage.removeItem("pansVoterToken");
         sessionStorage.setItem("pansAdminToken", data.token);
       }
       setAuthed(true);
@@ -96,16 +120,16 @@ export default function Admin() {
 
   const loadVoters = useCallback(
     async (page = votersPage) => {
-    setVotersLoading(true);
-    try {
-      const data = await api.votersVoted(page, votersPerPage);
-      setVoters(data.voters);
-      setVotersPage(data.page);
-      setVotersHasNext(data.hasNextPage);
-      setVotersLoadedAt(new Date().toISOString());
-    } finally {
-      setVotersLoading(false);
-    }
+      setVotersLoading(true);
+      try {
+        const data = await api.votersVoted(page, votersPerPage);
+        setVoters(data.voters);
+        setVotersPage(data.page);
+        setVotersHasNext(data.hasNextPage);
+        setVotersLoadedAt(new Date().toISOString());
+      } finally {
+        setVotersLoading(false);
+      }
     },
     [votersPage, votersPerPage],
   );
@@ -171,7 +195,13 @@ export default function Admin() {
     try {
       setLoading(true);
       await api.savePost(postForm);
-      setPostForm({ id: "", title: "", eligible_level: "", display_order: 0, is_active: true });
+      setPostForm({
+        id: "",
+        title: "",
+        eligible_level: "",
+        display_order: 0,
+        is_active: true,
+      });
       await loadAdminCoreData();
       if (activeTab === "results") await loadResults();
       if (activeTab === "voters") await loadVoters(votersPage);
@@ -233,7 +263,13 @@ export default function Admin() {
       setVoters([]);
       setVotersPage(1);
       setVotersHasNext(false);
-      setPostForm({ id: "", title: "", eligible_level: "", display_order: 0, is_active: true });
+      setPostForm({
+        id: "",
+        title: "",
+        eligible_level: "",
+        display_order: 0,
+        is_active: true,
+      });
       setCandidateForm(emptyCandidate([]));
       await loadAdminCoreData();
       setMessage("Election setup reset.");
@@ -326,7 +362,9 @@ export default function Admin() {
               name: String(row.name || "").trim(),
               tagline: String(row.tagline || "").trim(),
               image_url: String(row.image_url || row.image || "").trim(),
-              eligible_level: String(row.eligible_level || row.level || "").trim(),
+              eligible_level: String(
+                row.eligible_level || row.level || "",
+              ).trim(),
               display_order: Number(row.display_order || row.order || 0),
               post_order: Number(row.post_order || row.group_order || 0),
             }))
@@ -337,7 +375,9 @@ export default function Admin() {
             }));
 
           if (!rows.length) {
-            setMessage("The file does not contain any valid post/candidate rows.");
+            setMessage(
+              "The file does not contain any valid post/candidate rows.",
+            );
             return;
           }
 
@@ -346,7 +386,9 @@ export default function Admin() {
           await loadAdminCoreData();
           if (activeTab === "results") await loadResults();
           if (activeTab === "voters") await loadVoters(1);
-          setMessage(`Imported ${rows.length} candidate rows from ${file.name}.`);
+          setMessage(
+            `Imported ${rows.length} candidate rows from ${file.name}.`,
+          );
         } catch (err) {
           setMessage(err.message);
         } finally {
@@ -377,7 +419,12 @@ export default function Admin() {
   const totalVotes = useMemo(
     () =>
       results.reduce(
-        (sum, post) => sum + post.candidates.reduce((inner, candidate) => inner + candidate.votes, 0),
+        (sum, post) =>
+          sum +
+          post.candidates.reduce(
+            (inner, candidate) => inner + candidate.votes,
+            0,
+          ),
         0,
       ),
     [results],
@@ -386,7 +433,10 @@ export default function Admin() {
   const percentageResults = useMemo(
     () =>
       results.map((post) => {
-        const postTotal = post.candidates.reduce((sum, candidate) => sum + candidate.votes, 0);
+        const postTotal = post.candidates.reduce(
+          (sum, candidate) => sum + candidate.votes,
+          0,
+        );
         return {
           ...post,
           totalVotes: postTotal,
@@ -401,7 +451,10 @@ export default function Admin() {
 
   if (!authed) {
     return (
-      <div className="login-page" style={{ backgroundImage: `url(${welcome})` }}>
+      <div
+        className="login-page"
+        style={{ backgroundImage: `url(${welcome})` }}
+      >
         <div className="page-scrim">
           <form className="login-panel compact" onSubmit={login}>
             <Lock size={34} />
@@ -436,26 +489,44 @@ export default function Admin() {
           <div>
             <p className="eyebrow">PANS UniZik</p>
             <h1>Admin Dashboard</h1>
-            <p>{posts.length} posts · {candidates.length} candidates · {totalVotes} votes</p>
+            <p>
+              {posts.length} posts · {candidates.length} candidates ·{" "}
+              {totalVotes} votes
+            </p>
           </div>
           <div className="topbar-actions">
-            <span className={`status-pill ${electionStatus.votingOpen ? "open" : "closed"}`}>
+            <span
+              className={`status-pill ${electionStatus.votingOpen ? "open" : "closed"}`}
+            >
               {electionStatus.votingOpen ? "Voting Open" : "Voting Closed"}
             </span>
-            <button className="icon-button" onClick={refreshAdminView} title="Refresh">
+            <button
+              className="icon-button"
+              onClick={refreshAdminView}
+              title="Refresh"
+            >
               <RefreshCw size={18} />
             </button>
           </div>
         </header>
 
         <nav className="tabs">
-          <button className={activeTab === "setup" ? "active" : ""} onClick={() => setActiveTab("setup")}>
+          <button
+            className={activeTab === "setup" ? "active" : ""}
+            onClick={() => setActiveTab("setup")}
+          >
             <Vote size={16} /> Setup
           </button>
-            <button className={activeTab === "voters" ? "active" : ""} onClick={() => setActiveTab("voters")}>
-              <Users size={16} /> Voted
-            </button>
-          <button className={activeTab === "results" ? "active" : ""} onClick={() => setActiveTab("results")}>
+          <button
+            className={activeTab === "voters" ? "active" : ""}
+            onClick={() => setActiveTab("voters")}
+          >
+            <Users size={16} /> Voted
+          </button>
+          <button
+            className={activeTab === "results" ? "active" : ""}
+            onClick={() => setActiveTab("results")}
+          >
             <Download size={16} /> Results
           </button>
         </nav>
@@ -474,7 +545,9 @@ export default function Admin() {
                       : "Voters cannot request OTPs or submit ballots."}
                   </p>
                 </div>
-                <span className={`status-pill ${electionStatus.votingOpen ? "open" : "closed"}`}>
+                <span
+                  className={`status-pill ${electionStatus.votingOpen ? "open" : "closed"}`}
+                >
                   {electionStatus.votingOpen ? "Open" : "Closed"}
                 </span>
               </div>
@@ -495,12 +568,20 @@ export default function Admin() {
                 >
                   <PauseCircle size={16} /> Stop Voting
                 </button>
-                <button className="mini-button danger" type="button" onClick={resetVotes} disabled={loading}>
+                <button
+                  className="mini-button danger"
+                  type="button"
+                  onClick={resetVotes}
+                  disabled={loading}
+                >
                   Reset Votes
                 </button>
               </div>
               {electionStatus.updatedAt ? (
-                <p className="panel-note">Last changed {new Date(electionStatus.updatedAt).toLocaleString()}</p>
+                <p className="panel-note">
+                  Last changed{" "}
+                  {new Date(electionStatus.updatedAt).toLocaleString()}
+                </p>
               ) : null}
             </section>
 
@@ -508,13 +589,25 @@ export default function Admin() {
               <div className="panel-head">
                 <h2>Posts</h2>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button className="mini-button" type="button" onClick={handleTemplateDownload}>
+                  <button
+                    className="mini-button"
+                    type="button"
+                    onClick={handleTemplateDownload}
+                  >
                     Download Template
                   </button>
-                  <button className="mini-button" type="button" onClick={openImport}>
+                  <button
+                    className="mini-button"
+                    type="button"
+                    onClick={openImport}
+                  >
                     Import CSV
                   </button>
-                  <button className="mini-button danger" type="button" onClick={resetElection}>
+                  <button
+                    className="mini-button danger"
+                    type="button"
+                    onClick={resetElection}
+                  >
                     Reset Election
                   </button>
                 </div>
@@ -526,16 +619,25 @@ export default function Admin() {
                 hidden
                 onChange={handleImportFile}
               />
-              {importName && <p className="admin-message">Selected file: {importName}</p>}
+              {importName && (
+                <p className="admin-message">Selected file: {importName}</p>
+              )}
               <form className="admin-form" onSubmit={savePost}>
                 <input
                   value={postForm.title}
-                  onChange={(event) => setPostForm({ ...postForm, title: event.target.value })}
+                  onChange={(event) =>
+                    setPostForm({ ...postForm, title: event.target.value })
+                  }
                   placeholder="Post title"
                 />
                 <select
                   value={postForm.eligible_level || ""}
-                  onChange={(event) => setPostForm({ ...postForm, eligible_level: event.target.value })}
+                  onChange={(event) =>
+                    setPostForm({
+                      ...postForm,
+                      eligible_level: event.target.value,
+                    })
+                  }
                 >
                   <option value="">All levels can vote</option>
                   <option value="200L">200L only</option>
@@ -546,7 +648,12 @@ export default function Admin() {
                 <input
                   type="number"
                   value={postForm.display_order}
-                  onChange={(event) => setPostForm({ ...postForm, display_order: event.target.value })}
+                  onChange={(event) =>
+                    setPostForm({
+                      ...postForm,
+                      display_order: event.target.value,
+                    })
+                  }
                   placeholder="Order"
                 />
                 <button className="primary-button" disabled={loading}>
@@ -556,10 +663,21 @@ export default function Admin() {
               <div className="table-list">
                 {posts.map((post) => (
                   <div className="table-row" key={post.id}>
-                    <span>{post.title}{post.eligible_level ? ` · ${post.eligible_level}` : ""}</span>
+                    <span>
+                      {post.title}
+                      {post.eligible_level ? ` · ${post.eligible_level}` : ""}
+                    </span>
                     <div>
-                      <button className="mini-button" onClick={() => setPostForm(post)}>Edit</button>
-                      <button className="mini-button danger" onClick={() => removePost(post.id)}>
+                      <button
+                        className="mini-button"
+                        onClick={() => setPostForm(post)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="mini-button danger"
+                        onClick={() => removePost(post.id)}
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -573,26 +691,48 @@ export default function Admin() {
               <form className="admin-form" onSubmit={saveCandidate}>
                 <select
                   value={candidateForm.post_id}
-                  onChange={(event) => setCandidateForm({ ...candidateForm, post_id: event.target.value })}
+                  onChange={(event) =>
+                    setCandidateForm({
+                      ...candidateForm,
+                      post_id: event.target.value,
+                    })
+                  }
                 >
                   <option value="">Select post</option>
                   {posts.map((post) => (
-                    <option value={post.id} key={post.id}>{post.title}</option>
+                    <option value={post.id} key={post.id}>
+                      {post.title}
+                    </option>
                   ))}
                 </select>
                 <input
                   value={candidateForm.name}
-                  onChange={(event) => setCandidateForm({ ...candidateForm, name: event.target.value })}
+                  onChange={(event) =>
+                    setCandidateForm({
+                      ...candidateForm,
+                      name: event.target.value,
+                    })
+                  }
                   placeholder="Candidate name"
                 />
                 <input
                   value={candidateForm.tagline}
-                  onChange={(event) => setCandidateForm({ ...candidateForm, tagline: event.target.value })}
+                  onChange={(event) =>
+                    setCandidateForm({
+                      ...candidateForm,
+                      tagline: event.target.value,
+                    })
+                  }
                   placeholder="Tagline or department"
                 />
                 <input
                   value={candidateForm.image_url}
-                  onChange={(event) => setCandidateForm({ ...candidateForm, image_url: event.target.value })}
+                  onChange={(event) =>
+                    setCandidateForm({
+                      ...candidateForm,
+                      image_url: event.target.value,
+                    })
+                  }
                   placeholder="Image URL"
                 />
                 <button className="primary-button" disabled={loading}>
@@ -604,8 +744,16 @@ export default function Admin() {
                   <div className="table-row" key={candidate.id}>
                     <span>{candidate.name}</span>
                     <div>
-                      <button className="mini-button" onClick={() => setCandidateForm(candidate)}>Edit</button>
-                      <button className="mini-button danger" onClick={() => removeCandidate(candidate.id)}>
+                      <button
+                        className="mini-button"
+                        onClick={() => setCandidateForm(candidate)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="mini-button danger"
+                        onClick={() => removeCandidate(candidate.id)}
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -621,19 +769,30 @@ export default function Admin() {
             <div className="panel-head">
               <h2>People Who Voted</h2>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button className="mini-button" type="button" onClick={() => loadVoters(1)} disabled={votersLoading}>
+                <button
+                  className="mini-button"
+                  type="button"
+                  onClick={() => loadVoters(1)}
+                  disabled={votersLoading}
+                >
                   Refresh
                 </button>
               </div>
             </div>
-            {votersLoading ? <p className="admin-message">Loading voters...</p> : null}
+            {votersLoading ? (
+              <p className="admin-message">Loading voters...</p>
+            ) : null}
             <div className="voter-table">
               {voters.map((voter) => (
                 <div className="voter-row" key={voter.reg_no}>
                   <strong>{voter.name}</strong>
                   <span>{voter.reg_no}</span>
                   <span>{voter.email}</span>
-                  <span>{voter.voted_at ? new Date(voter.voted_at).toLocaleString() : ""}</span>
+                  <span>
+                    {voter.voted_at
+                      ? new Date(voter.voted_at).toLocaleString()
+                      : ""}
+                  </span>
                 </div>
               ))}
             </div>
@@ -661,21 +820,33 @@ export default function Admin() {
 
         {activeTab === "results" && (
           <>
-            {resultsLoading ? <p className="admin-message">Loading results...</p> : null}
+            {resultsLoading ? (
+              <p className="admin-message">Loading results...</p>
+            ) : null}
             {resultsLoadedAt ? (
-              <p className="admin-message">Results loaded {new Date(resultsLoadedAt).toLocaleString()}</p>
+              <p className="admin-message">
+                Results loaded {new Date(resultsLoadedAt).toLocaleString()}
+              </p>
             ) : null}
             <div className="results-grid">
               {percentageResults.map((post) => (
                 <section className="panel" key={post.id}>
                   <div className="panel-head">
                     <h2>{post.title}</h2>
-                    <button className="mini-button" onClick={() => downloadChart(post.id, post.title)}>
+                    <button
+                      className="mini-button"
+                      onClick={() => downloadChart(post.id, post.title)}
+                    >
                       <Download size={14} /> Download
                     </button>
                   </div>
-                  <p className="admin-message">Total votes: {post.totalVotes}</p>
-                  <div className="chart-box" ref={(node) => (chartRefs.current[post.id] = node)}>
+                  <p className="admin-message">
+                    Total votes: {post.totalVotes}
+                  </p>
+                  <div
+                    className="chart-box"
+                    ref={(node) => (chartRefs.current[post.id] = node)}
+                  >
                     <ResponsiveContainer width="100%" height={280}>
                       <PieChart>
                         <Pie
@@ -686,7 +857,10 @@ export default function Admin() {
                           label={({ percentage }) => formatPercent(percentage)}
                         >
                           {post.candidates.map((candidate, index) => (
-                            <Cell key={candidate.id} fill={COLORS[index % COLORS.length]} />
+                            <Cell
+                              key={candidate.id}
+                              fill={COLORS[index % COLORS.length]}
+                            />
                           ))}
                         </Pie>
                         <Tooltip

@@ -23,6 +23,7 @@ export default function AdminGate() {
       setSubmitting(true);
       const data = await api.adminLogin(password);
       if (data.token) {
+        sessionStorage.removeItem("pansVoterToken");
         sessionStorage.setItem("pansAdminToken", data.token);
       }
       setAuthed(true);

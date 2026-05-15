@@ -1,7 +1,16 @@
 import { json, methodNotAllowed, readBody } from "./_lib/http.js";
 import { getElectionStatus } from "./_lib/election-status.js";
 import { requireVoter } from "./_lib/session.js";
-import { insertRows, supabaseRequest } from "./_lib/supabase.js";
+import { getSingle, insertRows, supabaseRequest } from "./_lib/supabase.js";
+
+function normalizeLevel(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/LEVEL$/, "L")
+    .replace(/LVL$/, "L");
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res);
@@ -27,18 +36,34 @@ export default async function handler(req, res) {
       return json(res, 400, { error: "Vote selections are required." });
     }
 
+    const voterRecord = voter.level
+      ? voter
+      : await getSingle("voters", { reg_no: `eq.${voter.reg_no}` });
+    if (!voterRecord) {
+      return json(res, 404, { error: "Voter not found." });
+    }
+
     const posts = await supabaseRequest("posts", {
-      query: { select: "id", is_active: "eq.true" },
+      query: { select: "id,eligible_level", is_active: "eq.true" },
     });
-    const requiredPostIds = posts.map((post) => String(post.id));
+    const voterLevel = normalizeLevel(voterRecord.level);
+    const eligiblePosts = posts.filter((post) => {
+      const eligibleLevel = normalizeLevel(post.eligible_level);
+      return !eligibleLevel || eligibleLevel === voterLevel;
+    });
+    const ineligiblePostIds = posts
+      .filter((post) => !eligiblePosts.includes(post))
+      .map((post) => String(post.id));
+    const requiredPostIds = eligiblePosts.map((post) => String(post.id));
     const selectedPostIds = Object.keys(selections);
 
     if (
       requiredPostIds.length === 0 ||
       selectedPostIds.length !== requiredPostIds.length ||
-      requiredPostIds.some((postId) => !selectedPostIds.includes(postId))
+      requiredPostIds.some((postId) => !selectedPostIds.includes(postId)) ||
+      selectedPostIds.some((postId) => ineligiblePostIds.includes(postId))
     ) {
-      return json(res, 400, { error: "Please vote for every available post." });
+      return json(res, 400, { error: "Please vote for every post available to your level." });
     }
 
     const rows = Object.entries(selections).map(([postId, candidateId]) => ({

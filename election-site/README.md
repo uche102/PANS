@@ -96,6 +96,8 @@ The admin page can import a CSV with these columns:
 - `name`
 - `tagline`
 - `image_url`
+- `eligible_level` (`200L`, `300L`, `400L`, `500L`, or blank for all voters)
 - `display_order`
+- `post_order` (optional; if blank, posts are ranked from House of Representatives first down to President last)
 
 Use the `Download Template` button on the admin page to get a starter file.

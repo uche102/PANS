@@ -40,6 +40,7 @@ export function createVoterSession(res, voter) {
     {
       reg_no: voter.reg_no,
       name: voter.name,
+      level: voter.level,
       exp: Date.now() + 1000 * 60 * 60 * 6,
     },
     secret,

@@ -32,10 +32,13 @@ create index if not exists otp_codes_created_at_idx on otp_codes (created_at des
 create table if not exists posts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
+  eligible_level text,
   display_order integer not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table posts add column if not exists eligible_level text;
 
 create table if not exists candidates (
   id uuid primary key default gen_random_uuid(),
@@ -63,6 +66,7 @@ create index if not exists votes_candidate_id_idx on votes (candidate_id);
 create index if not exists votes_created_at_idx on votes (created_at desc);
 create index if not exists candidates_post_id_idx on candidates (post_id);
 create index if not exists posts_display_order_idx on posts (display_order);
+create index if not exists posts_eligible_level_idx on posts (eligible_level);
 
 create or replace view voters_with_vote_status as
 select
@@ -81,6 +85,7 @@ create or replace view election_results as
 select
   p.id as post_id,
   p.title as post_title,
+  p.eligible_level as post_eligible_level,
   p.display_order as post_order,
   c.id as candidate_id,
   c.name as candidate_name,
@@ -90,12 +95,7 @@ from posts p
 join candidates c on c.post_id = p.id
 left join votes v on v.candidate_id = c.id and v.post_id = p.id
 where p.is_active = true and c.is_active = true
-group by p.id, p.title, p.display_order, c.id, c.name, c.display_order;
-
--- Clear existing data (careful with order due to foreign keys)
-truncate table votes cascade;
-truncate table otp_codes cascade;
-truncate table voters cascade;
+group by p.id, p.title, p.eligible_level, p.display_order, c.id, c.name, c.display_order;
 
 alter table voters enable row level security;
 alter table otp_codes enable row level security;

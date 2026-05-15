@@ -1,4 +1,5 @@
 import { json, methodNotAllowed, readBody } from "../_lib/http.js";
+import { positionRank } from "../_lib/post-order.js";
 import { requireAdmin } from "../_lib/session.js";
 import { supabaseRequest } from "../_lib/supabase.js";
 
@@ -62,26 +63,29 @@ export default async function handler(req, res) {
         const name = String(item.name || "").trim();
         const tagline = String(item.tagline || "").trim();
         const image_url = String(item.image_url || item.image || "").trim();
+        const eligible_level = String(item.eligible_level || item.level || "").trim() || null;
         const display_order = Number(item.display_order || item.order || 0);
 
         if (!title || !name) continue;
 
-        if (!importedPosts.has(title)) {
+        const postKey = `${title}\u0000${eligible_level || ""}`;
+        if (!importedPosts.has(postKey)) {
           const [post] = await supabaseRequest("posts", {
             method: "POST",
             body: {
               title,
-              display_order: Number(item.post_order || item.group_order || importedPosts.size + 1),
+              eligible_level,
+              display_order: Number(item.post_order || item.group_order || positionRank({ title })),
               is_active: true,
             },
           });
-          importedPosts.set(title, post.id);
+          importedPosts.set(postKey, post.id);
         }
 
         await supabaseRequest("candidates", {
           method: "POST",
           body: {
-            post_id: importedPosts.get(title),
+            post_id: importedPosts.get(postKey),
             name,
             tagline,
             image_url,

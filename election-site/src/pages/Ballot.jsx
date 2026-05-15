@@ -4,6 +4,15 @@ import { useNavigate } from "react-router-dom";
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
 
+function normalizeLevel(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/LEVEL$/, "L")
+    .replace(/LVL$/, "L");
+}
+
 export default function Ballot() {
   const navigate = useNavigate();
   const [voter, setVoter] = useState(null);
@@ -53,8 +62,18 @@ export default function Ballot() {
     load();
   }, [navigate]);
 
+  const voterLevel = normalizeLevel(voter?.level);
+  const selectablePosts = useMemo(
+    () =>
+      posts.filter((post) => {
+        const eligibleLevel = normalizeLevel(post.eligible_level);
+        return !eligibleLevel || eligibleLevel === voterLevel;
+      }),
+    [posts, voterLevel],
+  );
   const selectedCount = Object.keys(selections).length;
-  const canSubmit = votingOpen && posts.length > 0 && selectedCount === posts.length;
+  const canSubmit =
+    votingOpen && selectablePosts.length > 0 && selectedCount === selectablePosts.length;
 
   const voterLabel = useMemo(() => {
     if (!voter) return "";
@@ -64,7 +83,7 @@ export default function Ballot() {
   async function submitVote() {
     setError("");
     if (!canSubmit) {
-      setError("Select one candidate for every post before submitting.");
+      setError("Select one candidate for every post available to your level before submitting.");
       return;
     }
 
@@ -107,7 +126,7 @@ export default function Ballot() {
           <CheckCircle size={18} />
           <span>
             {votingOpen
-              ? `${selectedCount} of ${posts.length} posts selected`
+              ? `${selectedCount} of ${selectablePosts.length} available posts selected`
               : "Voting is currently closed"}
           </span>
         </div>
@@ -123,9 +142,14 @@ export default function Ballot() {
               key={post.id}
             >
               <h2>{post.title}</h2>
+              {normalizeLevel(post.eligible_level) && normalizeLevel(post.eligible_level) !== voterLevel && (
+                <p className="level-lock">Visible only. Voting is limited to {post.eligible_level} voters.</p>
+              )}
               <div className="candidate-grid">
                 {post.candidates.map((candidate) => {
                   const selected = selections[post.id] === candidate.id;
+                  const eligibleLevel = normalizeLevel(post.eligible_level);
+                  const canSelectPost = !eligibleLevel || eligibleLevel === voterLevel;
                   return (
                     <button
                       type="button"
@@ -133,7 +157,7 @@ export default function Ballot() {
                       className={`candidate-card ${selected ? "selected" : ""} ${
                         post.title.toLowerCase().includes("squid game") ? "candidate-card-large" : ""
                       }`}
-                      disabled={!votingOpen || submitting}
+                      disabled={!votingOpen || submitting || !canSelectPost}
                       onClick={() =>
                         setSelections((current) => ({ ...current, [post.id]: candidate.id }))
                       }
@@ -147,7 +171,7 @@ export default function Ballot() {
                       </div>
                       <strong>{candidate.name}</strong>
                       {candidate.tagline && <span>{candidate.tagline}</span>}
-                      <small>{selected ? "Selected" : "Tap to select"}</small>
+                      <small>{!canSelectPost ? "Not for your level" : selected ? "Selected" : "Tap to select"}</small>
                     </button>
                   );
                 })}

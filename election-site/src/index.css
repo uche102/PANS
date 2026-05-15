@@ -391,6 +391,13 @@ label span {
   opacity: 0.62;
 }
 
+.level-lock {
+  margin: 8px 0 0;
+  color: #854d0e;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .candidate-avatar {
   width: 108px;
   height: 108px;

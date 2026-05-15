@@ -1,4 +1,5 @@
 import { json, methodNotAllowed } from "../_lib/http.js";
+import { sortPostsByHierarchy } from "../_lib/post-order.js";
 import { requireAdmin } from "../_lib/session.js";
 import { supabaseRequest } from "../_lib/supabase.js";
 
@@ -15,7 +16,12 @@ export default async function handler(req, res) {
     rows.forEach((row) => {
       let post = posts.find((item) => item.id === row.post_id);
       if (!post) {
-        post = { id: row.post_id, title: row.post_title, candidates: [] };
+        post = {
+          id: row.post_id,
+          title: row.post_title,
+          eligible_level: row.post_eligible_level,
+          candidates: [],
+        };
         posts.push(post);
       }
       post.candidates.push({
@@ -24,7 +30,7 @@ export default async function handler(req, res) {
         votes: Number(row.vote_count || 0),
       });
     });
-    return json(res, 200, { posts, loadedAt: new Date().toISOString() });
+    return json(res, 200, { posts: sortPostsByHierarchy(posts), loadedAt: new Date().toISOString() });
   } catch (error) {
     return json(res, 500, { error: error.message || "Could not load results." });
   }

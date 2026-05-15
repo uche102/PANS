@@ -1,4 +1,5 @@
 import { json, methodNotAllowed, readBody } from "../_lib/http.js";
+import { sortPostsByHierarchy } from "../_lib/post-order.js";
 import { requireAdmin } from "../_lib/session.js";
 import { insertRows, supabaseRequest } from "../_lib/supabase.js";
 
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
       const posts = await supabaseRequest("posts", {
         query: { select: "*", title: "not.like.__PANS_ELECTION_CONTROL__:%", order: "display_order.asc" },
       });
-      return json(res, 200, { posts });
+      return json(res, 200, { posts: sortPostsByHierarchy(posts) });
     }
 
     if (req.method === "POST") {
@@ -20,6 +21,7 @@ export default async function handler(req, res) {
       const [post] = await insertRows("posts", [
         {
           title: body.title.trim(),
+          eligible_level: body.eligible_level ? String(body.eligible_level).trim() : null,
           display_order: Number(body.display_order || 0),
           is_active: body.is_active !== false,
         },
@@ -35,6 +37,7 @@ export default async function handler(req, res) {
         query: { id: `eq.${body.id}` },
         body: {
           title: body.title.trim(),
+          eligible_level: body.eligible_level ? String(body.eligible_level).trim() : null,
           display_order: Number(body.display_order || 0),
           is_active: body.is_active !== false,
         },

@@ -16,6 +16,7 @@ import Papa from "papaparse";
 
 import welcome from "../assets/welcome.jpeg";
 import { api } from "../lib/api";
+import { positionRank } from "../lib/post-order";
 
 const COLORS = ["#0f766e", "#2563eb", "#c2410c", "#7c3aed", "#be123c", "#15803d"];
 
@@ -52,7 +53,7 @@ export default function Admin() {
   const [votersLoading, setVotersLoading] = useState(false);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [electionStatus, setElectionStatus] = useState({ votingOpen: true, updatedAt: "" });
-  const [postForm, setPostForm] = useState({ id: "", title: "", display_order: 0, is_active: true });
+  const [postForm, setPostForm] = useState({ id: "", title: "", eligible_level: "", display_order: 0, is_active: true });
   const [candidateForm, setCandidateForm] = useState(emptyCandidate([]));
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -170,7 +171,7 @@ export default function Admin() {
     try {
       setLoading(true);
       await api.savePost(postForm);
-      setPostForm({ id: "", title: "", display_order: 0, is_active: true });
+      setPostForm({ id: "", title: "", eligible_level: "", display_order: 0, is_active: true });
       await loadAdminCoreData();
       if (activeTab === "results") await loadResults();
       if (activeTab === "voters") await loadVoters(votersPage);
@@ -232,7 +233,7 @@ export default function Admin() {
       setVoters([]);
       setVotersPage(1);
       setVotersHasNext(false);
-      setPostForm({ id: "", title: "", display_order: 0, is_active: true });
+      setPostForm({ id: "", title: "", eligible_level: "", display_order: 0, is_active: true });
       setCandidateForm(emptyCandidate([]));
       await loadAdminCoreData();
       setMessage("Election setup reset.");
@@ -290,6 +291,7 @@ export default function Admin() {
         name: "Bola-Ahmed Tinubu",
         tagline: "Example tagline",
         image_url: "https://example.com/image.jpg",
+        eligible_level: "",
         display_order: 1,
       },
     ];
@@ -324,10 +326,15 @@ export default function Admin() {
               name: String(row.name || "").trim(),
               tagline: String(row.tagline || "").trim(),
               image_url: String(row.image_url || row.image || "").trim(),
+              eligible_level: String(row.eligible_level || row.level || "").trim(),
               display_order: Number(row.display_order || row.order || 0),
               post_order: Number(row.post_order || row.group_order || 0),
             }))
-            .filter((row) => row.post && row.name);
+            .filter((row) => row.post && row.name)
+            .map((row) => ({
+              ...row,
+              post_order: row.post_order || positionRank({ title: row.post }),
+            }));
 
           if (!rows.length) {
             setMessage("The file does not contain any valid post/candidate rows.");
@@ -526,6 +533,16 @@ export default function Admin() {
                   onChange={(event) => setPostForm({ ...postForm, title: event.target.value })}
                   placeholder="Post title"
                 />
+                <select
+                  value={postForm.eligible_level || ""}
+                  onChange={(event) => setPostForm({ ...postForm, eligible_level: event.target.value })}
+                >
+                  <option value="">All levels can vote</option>
+                  <option value="200L">200L only</option>
+                  <option value="300L">300L only</option>
+                  <option value="400L">400L only</option>
+                  <option value="500L">500L only</option>
+                </select>
                 <input
                   type="number"
                   value={postForm.display_order}
@@ -539,7 +556,7 @@ export default function Admin() {
               <div className="table-list">
                 {posts.map((post) => (
                   <div className="table-row" key={post.id}>
-                    <span>{post.title}</span>
+                    <span>{post.title}{post.eligible_level ? ` · ${post.eligible_level}` : ""}</span>
                     <div>
                       <button className="mini-button" onClick={() => setPostForm(post)}>Edit</button>
                       <button className="mini-button danger" onClick={() => removePost(post.id)}>

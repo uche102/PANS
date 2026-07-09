@@ -4,6 +4,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "build:frontends": "node scripts/build-frontends.mjs",
+    "prestart": "npm run build:frontends",
     "start": "node server.js",
     "dev": "node server.js"
   },

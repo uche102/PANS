@@ -8,8 +8,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/admin/:match*", "destination": "/index.html" },
-    { "source": "/:match*", "destination": "/index.html" }
+    { "source": "/admin(.*)", "destination": "/index.html" },
+    { "source": "/:path*", "destination": "/index.html" }
   ],
   "cleanUrls": true
 }

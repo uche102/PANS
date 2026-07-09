@@ -441,7 +441,7 @@ export default function Admin() {
     });
   }
 
-  function downloadChart(postId, title) {
+  async function downloadChart(postId, title) {
     const container = chartRefs.current[postId];
     const svg = container?.querySelector("svg");
     if (!svg) {
@@ -499,7 +499,7 @@ export default function Admin() {
       const finalSvg =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<svg xmlns="http://www.w3.org/2000/svg" width="${wrapperWidth}" height="${wrapperHeight}" viewBox="0 0 ${wrapperWidth} ${wrapperHeight}">\n` +
-        // white background to hide checkered canvas patterns
+        `<!-- white background to hide checkered canvas patterns -->\n` +
         `<rect x="0" y="0" width="${wrapperWidth}" height="${wrapperHeight}" fill="#ffffff" />\n` +
         `<g transform="translate(0,0)">\n` +
         `${svgHtml.replace(/^(<\?xml.*?\?>\s*)?/, "")}` +
@@ -507,23 +507,100 @@ export default function Admin() {
         `<g>${legendMarkup}\n</g>\n` +
         `</svg>`;
 
-      const blob = new Blob([finalSvg], {
-        type: "image/svg+xml;charset=utf-8",
-      });
-      triggerDownload(
-        blob,
-        `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
-      );
+      // Rasterize SVG to PNG via canvas for consistent results
+      try {
+        const url = URL.createObjectURL(
+          new Blob([finalSvg], { type: "image/svg+xml;charset=utf-8" }),
+        );
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = url;
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = (e) =>
+            reject(new Error("Failed to render SVG to image."));
+        });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = wrapperWidth;
+        canvas.height = wrapperHeight;
+        const ctx = canvas.getContext("2d");
+        // ensure white background
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+
+        const pngBlob = await new Promise((res) =>
+          canvas.toBlob(res, "image/png"),
+        );
+        if (pngBlob) {
+          triggerDownload(
+            pngBlob,
+            `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.png`,
+          );
+        } else {
+          throw new Error("Failed to create PNG blob from canvas.");
+        }
+      } catch (err) {
+        // Fallback: download SVG if rasterization fails
+        const blob = new Blob([finalSvg], {
+          type: "image/svg+xml;charset=utf-8",
+        });
+        triggerDownload(
+          blob,
+          `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
+        );
+      }
       return;
     }
 
     // Fallback: download the raw SVG if no post data found
-    const source = svgHtml;
-    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-    triggerDownload(
-      blob,
-      `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
-    );
+    // Fallback: rasterize raw svgHtml to PNG as well
+    const rawSvg = `<?xml version="1.0" encoding="UTF-8"?>\n` + svgHtml;
+    try {
+      const url = URL.createObjectURL(
+        new Blob([rawSvg], { type: "image/svg+xml;charset=utf-8" }),
+      );
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = url;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error("Failed to render SVG to image."));
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(
+        300,
+        Math.round(svg.getBoundingClientRect().width || 600),
+      );
+      canvas.height = Math.max(
+        200,
+        Math.round(svg.getBoundingClientRect().height || 280),
+      );
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      const pngBlob = await new Promise((res) =>
+        canvas.toBlob(res, "image/png"),
+      );
+      if (pngBlob) {
+        triggerDownload(
+          pngBlob,
+          `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.png`,
+        );
+      } else {
+        throw new Error("Failed to create PNG blob from canvas.");
+      }
+    } catch (err) {
+      const blob = new Blob([rawSvg], { type: "image/svg+xml;charset=utf-8" });
+      triggerDownload(
+        blob,
+        `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
+      );
+    }
   }
 
   function downloadVotersCsv() {

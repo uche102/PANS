@@ -8,6 +8,7 @@ const Admin = lazy(() => import("./Admin.jsx"));
 export default function AdminGate() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [authed, setAuthed] = useState(false);
 
@@ -16,7 +17,10 @@ export default function AdminGate() {
       localStorage.getItem("pansAdminToken") ||
       sessionStorage.getItem("pansAdminToken");
 
-    if (!storedToken) return;
+    if (!storedToken) {
+      setCheckingSession(false);
+      return;
+    }
 
     api
       .adminSession()
@@ -28,7 +32,8 @@ export default function AdminGate() {
         } else {
           setAuthed(true);
         }
-      });
+      })
+      .finally(() => setCheckingSession(false));
   }, []);
 
   async function handleSubmit(event) {
@@ -49,6 +54,10 @@ export default function AdminGate() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (checkingSession) {
+    return <div className="loading-screen">Checking admin session...</div>;
   }
 
   if (!authed) {

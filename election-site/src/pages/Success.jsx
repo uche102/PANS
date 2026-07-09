@@ -7,6 +7,9 @@ export default function Success() {
 
   function finish() {
     sessionStorage.removeItem("pansVoter");
+    sessionStorage.removeItem("pansVoterToken");
+    localStorage.removeItem("pansVoter");
+    localStorage.removeItem("pansVoterToken");
     navigate("/");
   }
 

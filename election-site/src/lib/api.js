@@ -31,12 +31,16 @@ function persistAdminToken(token) {
       } else {
         sessionStorage.removeItem("pansAdminToken");
       }
+    // eslint-disable-next-line no-empty
     } catch {}
   }
 }
 
 async function request(path, options = {}) {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+  const baseUrl =
+    import.meta.env.VITE_API_BASE_URL ||
+    "https://pans-unizik-election-api.onrender.com" ||
+    "";
   const voterToken = sessionStorage.getItem("pansVoterToken");
   const adminToken = readStoredToken("pansAdminToken");
   const isAdminRoute = path.startsWith("/api/admin");

@@ -7,7 +7,7 @@
     }
   ],
   "routes": [
-    { "src": "^/admin(?:/.*)?$", "dest": "/admin/index.html" },
+    { "src": "^/admin(?:/.*)?$", "dest": "/index.html" },
     { "src": "^/(.*)$", "dest": "/index.html" }
   ]
 }

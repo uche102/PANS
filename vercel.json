@@ -7,9 +7,9 @@
       "config": { "distDir": "dist" }
     }
   ],
-  "rewrites": [
-    { "source": "/admin/:match*", "destination": "/index.html" },
-    { "source": "/:match*", "destination": "/index.html" }
+  "routes": [
+    { "src": "^/admin(?:/.*)?$", "dest": "/index.html" },
+    { "src": "^/(.*)$", "dest": "/index.html" }
   ],
   "cleanUrls": true
 }

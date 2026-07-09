@@ -1,12 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "election-site/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ],
+  "installCommand": "cd election-site && npm install",
+  "buildCommand": "cd election-site && npm run build",
+  "outputDirectory": "election-site/dist",
   "rewrites": [
     { "source": "/admin/:path*", "destination": "/index.html" },
     { "source": "/:path*", "destination": "/index.html" }

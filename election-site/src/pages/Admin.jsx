@@ -499,6 +499,8 @@ export default function Admin() {
       const finalSvg =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<svg xmlns="http://www.w3.org/2000/svg" width="${wrapperWidth}" height="${wrapperHeight}" viewBox="0 0 ${wrapperWidth} ${wrapperHeight}">\n` +
+        // white background to hide checkered canvas patterns
+        `<rect x="0" y="0" width="${wrapperWidth}" height="${wrapperHeight}" fill="#ffffff" />\n` +
         `<g transform="translate(0,0)">\n` +
         `${svgHtml.replace(/^(<\?xml.*?\?>\s*)?/, "")}` +
         `\n</g>\n` +

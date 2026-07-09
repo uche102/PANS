@@ -56,7 +56,7 @@ export default function Admin() {
   const [authed, setAuthed] = useState(
     Boolean(
       localStorage.getItem("pansAdminToken") ||
-        sessionStorage.getItem("pansAdminToken"),
+      sessionStorage.getItem("pansAdminToken"),
     ),
   );
   const [activeTab, setActiveTab] = useState("setup");
@@ -448,8 +448,75 @@ export default function Admin() {
       setMessage("Chart is not ready yet. Refresh results and try again.");
       return;
     }
+
+    // Find the post data to include labels and colors
+    const post = percentageResults.find((p) => p.id === postId) || null;
+
+    // Ensure SVG has namespace
     svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    const source = new XMLSerializer().serializeToString(svg);
+
+    // Get original SVG markup
+    const svgHtml = new XMLSerializer().serializeToString(svg);
+
+    // Dimensions
+    const bbox = svg.getBoundingClientRect();
+    const svgWidth = Math.max(300, Math.round(bbox.width || 600));
+    const svgHeight = Math.max(200, Math.round(bbox.height || 280));
+
+    // Build legend markup from post candidates
+    let legendMarkup = "";
+    if (post && Array.isArray(post.candidates)) {
+      const lineHeight = 20;
+      const padding = 12;
+      const rectSize = 12;
+      const legendX = svgWidth + 20; // place legend to the right
+      const legendYStart = padding;
+
+      // Calculate legend height to decide wrapper size
+      const legendHeight =
+        post.candidates.length * (lineHeight + 6) + padding * 2;
+
+      // Build legend items
+      post.candidates.forEach((candidate, index) => {
+        const y = legendYStart + index * (lineHeight + 6);
+        const color = COLORS[index % COLORS.length];
+        const name = (candidate.name || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        const pct = formatPercent(candidate.percentage);
+        legendMarkup += `\n  <g>
+    <rect x="${legendX}" y="${y}" width="${rectSize}" height="${rectSize}" fill="${color}" />
+    <text x="${legendX + rectSize + 8}" y="${y + rectSize - 2}" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#111">${name}</text>
+    <text x="${legendX + rectSize + 8}" y="${y + rectSize + 12}" font-family="Arial, Helvetica, sans-serif" font-size="11" fill="#444">${pct}</text>
+  </g>`;
+      });
+
+      // Compose final SVG by placing original svg and legend side-by-side
+      const wrapperWidth = svgWidth + 240; // allow room for legend
+      const wrapperHeight = Math.max(svgHeight, legendHeight + 24);
+
+      const finalSvg =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${wrapperWidth}" height="${wrapperHeight}" viewBox="0 0 ${wrapperWidth} ${wrapperHeight}">\n` +
+        `<g transform="translate(0,0)">\n` +
+        `${svgHtml.replace(/^(<\?xml.*?\?>\s*)?/, "")}` +
+        `\n</g>\n` +
+        `<g>${legendMarkup}\n</g>\n` +
+        `</svg>`;
+
+      const blob = new Blob([finalSvg], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      triggerDownload(
+        blob,
+        `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
+      );
+      return;
+    }
+
+    // Fallback: download the raw SVG if no post data found
+    const source = svgHtml;
     const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
     triggerDownload(
       blob,

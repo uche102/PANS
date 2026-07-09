@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "election-site/package.json",
@@ -6,8 +7,9 @@
       "config": { "distDir": "dist" }
     }
   ],
-  "routes": [
-    { "src": "^/admin(?:/.*)?$", "dest": "/index.html" },
-    { "src": "^/(.*)$", "dest": "/index.html" }
-  ]
+  "rewrites": [
+    { "source": "/admin/:match*", "destination": "/index.html" },
+    { "source": "/:match*", "destination": "/index.html" }
+  ],
+  "cleanUrls": true
 }

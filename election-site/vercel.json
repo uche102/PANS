@@ -1,7 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/admin/:match*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:match*",
       "destination": "/index.html"
     }
   ]

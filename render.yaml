@@ -3,8 +3,8 @@ services:
     name: pans-unizik-election-api
     runtime: node
     plan: free
-    rootDir: pans-backend
-    buildCommand: npm install && npm run build:frontends
+    rootDir: election-site
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_VERSION

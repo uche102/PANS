@@ -7,10 +7,38 @@ export class ApiError extends Error {
   }
 }
 
+function readStoredToken(key) {
+  try {
+    return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+  } catch {
+    return sessionStorage.getItem(key) || "";
+  }
+}
+
+function persistAdminToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem("pansAdminToken", token);
+      sessionStorage.setItem("pansAdminToken", token);
+    } else {
+      localStorage.removeItem("pansAdminToken");
+      sessionStorage.removeItem("pansAdminToken");
+    }
+  } catch {
+    try {
+      if (token) {
+        sessionStorage.setItem("pansAdminToken", token);
+      } else {
+        sessionStorage.removeItem("pansAdminToken");
+      }
+    } catch {}
+  }
+}
+
 async function request(path, options = {}) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
   const voterToken = sessionStorage.getItem("pansVoterToken");
-  const adminToken = sessionStorage.getItem("pansAdminToken");
+  const adminToken = readStoredToken("pansAdminToken");
   const isAdminRoute = path.startsWith("/api/admin");
 
   const authorization =
@@ -66,8 +94,16 @@ export const api = {
   election: () => request("/api/election"),
   vote: (selections) =>
     request("/api/vote", { method: "POST", body: { selections } }),
-  adminLogin: (password) =>
-    request("/api/admin/login", { method: "POST", body: { password } }),
+  adminLogin: async (password) => {
+    const data = await request("/api/admin/login", {
+      method: "POST",
+      body: { password },
+    });
+    if (data.token) {
+      persistAdminToken(data.token);
+    }
+    return data;
+  },
   adminSession: () => request("/api/admin/session"),
   electionStatus: () => request("/api/admin/session"),
   setElectionStatus: (votingOpen) =>

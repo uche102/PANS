@@ -12,7 +12,19 @@ export default function AdminGate() {
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    sessionStorage.removeItem("pansAdminToken");
+    const storedToken =
+      localStorage.getItem("pansAdminToken") ||
+      sessionStorage.getItem("pansAdminToken");
+
+    if (!storedToken) return;
+
+    api
+      .adminSession()
+      .then(() => setAuthed(true))
+      .catch(() => {
+        localStorage.removeItem("pansAdminToken");
+        sessionStorage.removeItem("pansAdminToken");
+      });
   }, []);
 
   async function handleSubmit(event) {
@@ -24,6 +36,7 @@ export default function AdminGate() {
       const data = await api.adminLogin(password);
       if (data.token) {
         sessionStorage.removeItem("pansVoterToken");
+        localStorage.setItem("pansAdminToken", data.token);
         sessionStorage.setItem("pansAdminToken", data.token);
       }
       setAuthed(true);
@@ -36,7 +49,10 @@ export default function AdminGate() {
 
   if (!authed) {
     return (
-      <div className="login-page" style={{ backgroundImage: `url(${welcome})` }}>
+      <div
+        className="login-page"
+        style={{ backgroundImage: `url(${welcome})` }}
+      >
         <div className="page-scrim">
           <form className="login-panel compact" onSubmit={handleSubmit}>
             <Lock size={34} />
@@ -65,7 +81,11 @@ export default function AdminGate() {
   }
 
   return (
-    <Suspense fallback={<div className="loading-screen">Loading admin dashboard...</div>}>
+    <Suspense
+      fallback={
+        <div className="loading-screen">Loading admin dashboard...</div>
+      }
+    >
       <Admin />
     </Suspense>
   );

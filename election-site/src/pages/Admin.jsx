@@ -92,6 +92,7 @@ export default function Admin() {
       const data = await api.adminLogin(password);
       if (data.token) {
         sessionStorage.removeItem("pansVoterToken");
+        localStorage.setItem("pansAdminToken", data.token);
         sessionStorage.setItem("pansAdminToken", data.token);
       }
       setAuthed(true);
@@ -152,6 +153,7 @@ export default function Admin() {
         setAuthed(true);
         await loadAdminCoreData();
       } catch {
+        localStorage.removeItem("pansAdminToken");
         sessionStorage.removeItem("pansAdminToken");
         setAuthed(false);
       }
@@ -320,6 +322,19 @@ export default function Admin() {
     }
   }
 
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   function handleTemplateDownload() {
     const rows = [
       {
@@ -333,11 +348,7 @@ export default function Admin() {
     ];
     const csv = Papa.unparse(rows, { header: true });
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "candidate-import-template.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
+    triggerDownload(blob, "candidate-import-template.csv");
   }
 
   function openImport() {
@@ -409,11 +420,10 @@ export default function Admin() {
     if (!svg) return;
     const source = new XMLSerializer().serializeToString(svg);
     const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    triggerDownload(
+      blob,
+      `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
+    );
   }
 
   const totalVotes = useMemo(

@@ -21,9 +21,13 @@ export default function AdminGate() {
     api
       .adminSession()
       .then(() => setAuthed(true))
-      .catch(() => {
-        localStorage.removeItem("pansAdminToken");
-        sessionStorage.removeItem("pansAdminToken");
+      .catch((err) => {
+        if (err?.status === 401 || err?.status === 403) {
+          localStorage.removeItem("pansAdminToken");
+          sessionStorage.removeItem("pansAdminToken");
+        } else {
+          setAuthed(true);
+        }
       });
   }, []);
 

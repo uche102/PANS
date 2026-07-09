@@ -105,18 +105,24 @@ export default function Admin() {
   }
 
   const loadAdminCoreData = useCallback(async () => {
-    const [postData, candidateData, statusData] = await Promise.all([
-      api.adminPosts(),
-      api.adminCandidates(),
-      api.electionStatus(),
-    ]);
-    setPosts(postData.posts);
-    setCandidates(candidateData.candidates);
-    setElectionStatus(statusData);
-    setCandidateForm((current) => ({
-      ...current,
-      post_id: current.post_id || postData.posts[0]?.id || "",
-    }));
+    try {
+      const [postData, candidateData, statusData] = await Promise.all([
+        api.adminPosts(),
+        api.adminCandidates(),
+        api.electionStatus(),
+      ]);
+      setPosts(postData.posts);
+      setCandidates(candidateData.candidates);
+      setElectionStatus(statusData);
+      setCandidateForm((current) => ({
+        ...current,
+        post_id: current.post_id || postData.posts[0]?.id || "",
+      }));
+    } catch (err) {
+      const detail = err?.message || "Unable to load admin data.";
+      setMessage(detail);
+      throw err;
+    }
   }, []);
 
   const loadVoters = useCallback(
@@ -152,10 +158,21 @@ export default function Admin() {
         await api.adminSession();
         setAuthed(true);
         await loadAdminCoreData();
-      } catch {
-        localStorage.removeItem("pansAdminToken");
-        sessionStorage.removeItem("pansAdminToken");
-        setAuthed(false);
+      } catch (err) {
+        const status = err?.status;
+        if (status === 401 || status === 403) {
+          localStorage.removeItem("pansAdminToken");
+          sessionStorage.removeItem("pansAdminToken");
+          setAuthed(false);
+          setMessage("Your admin session expired. Please log in again.");
+          return;
+        }
+
+        setAuthed(true);
+        setMessage(
+          err?.message ||
+            "Session restored, but admin data could not be loaded.",
+        );
       }
     }
     check();
@@ -329,8 +346,13 @@ export default function Admin() {
     link.download = filename;
     link.rel = "noopener";
     link.style.display = "none";
+    link.target = "_blank";
     document.body.appendChild(link);
-    link.click();
+    try {
+      link.click();
+    } catch {
+      window.open(url, "_blank");
+    }
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
@@ -845,6 +867,7 @@ export default function Admin() {
                     <h2>{post.title}</h2>
                     <button
                       className="mini-button"
+                      type="button"
                       onClick={() => downloadChart(post.id, post.title)}
                     >
                       <Download size={14} /> Download

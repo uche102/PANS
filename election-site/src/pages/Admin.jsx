@@ -53,7 +53,12 @@ function emptyCandidate(posts) {
 
 export default function Admin() {
   const [password, setPassword] = useState("");
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(
+    Boolean(
+      localStorage.getItem("pansAdminToken") ||
+        sessionStorage.getItem("pansAdminToken"),
+    ),
+  );
   const [activeTab, setActiveTab] = useState("setup");
   const [posts, setPosts] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -354,7 +359,7 @@ export default function Admin() {
       window.open(url, "_blank");
     }
     document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
 
   function handleTemplateDownload() {
@@ -439,13 +444,53 @@ export default function Admin() {
   function downloadChart(postId, title) {
     const container = chartRefs.current[postId];
     const svg = container?.querySelector("svg");
-    if (!svg) return;
+    if (!svg) {
+      setMessage("Chart is not ready yet. Refresh results and try again.");
+      return;
+    }
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     const source = new XMLSerializer().serializeToString(svg);
     const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
     triggerDownload(
       blob,
       `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-results.svg`,
     );
+  }
+
+  function downloadVotersCsv() {
+    if (!voters.length) {
+      setMessage("Load the voted list before downloading it.");
+      return;
+    }
+    const rows = voters.map((voter) => ({
+      name: voter.name,
+      reg_no: voter.reg_no,
+      email: voter.email,
+      voted_at: voter.voted_at || "",
+    }));
+    const blob = new Blob([Papa.unparse(rows, { header: true })], {
+      type: "text/csv;charset=utf-8",
+    });
+    triggerDownload(blob, `voted-voters-page-${votersPage}.csv`);
+  }
+
+  function downloadResultsCsv() {
+    if (!percentageResults.length) {
+      setMessage("Load results before downloading them.");
+      return;
+    }
+    const rows = percentageResults.flatMap((post) =>
+      post.candidates.map((candidate) => ({
+        post: post.title,
+        candidate: candidate.name,
+        votes: candidate.votes,
+        percentage: formatPercent(candidate.percentage),
+      })),
+    );
+    const blob = new Blob([Papa.unparse(rows, { header: true })], {
+      type: "text/csv;charset=utf-8",
+    });
+    triggerDownload(blob, "election-results.csv");
   }
 
   const totalVotes = useMemo(
@@ -809,6 +854,14 @@ export default function Admin() {
                 >
                   Refresh
                 </button>
+                <button
+                  className="mini-button"
+                  type="button"
+                  onClick={downloadVotersCsv}
+                  disabled={votersLoading}
+                >
+                  <Download size={14} /> Download CSV
+                </button>
               </div>
             </div>
             {votersLoading ? (
@@ -860,6 +913,24 @@ export default function Admin() {
                 Results loaded {new Date(resultsLoadedAt).toLocaleString()}
               </p>
             ) : null}
+            <div className="panel-head" style={{ marginBottom: "12px" }}>
+              <button
+                className="mini-button"
+                type="button"
+                onClick={loadResults}
+                disabled={resultsLoading}
+              >
+                Refresh Results
+              </button>
+              <button
+                className="mini-button"
+                type="button"
+                onClick={downloadResultsCsv}
+                disabled={resultsLoading}
+              >
+                <Download size={14} /> Download CSV
+              </button>
+            </div>
             <div className="results-grid">
               {percentageResults.map((post) => (
                 <section className="panel" key={post.id}>

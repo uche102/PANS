@@ -15,6 +15,18 @@ function readStoredToken(key) {
   }
 }
 
+function readVoterToken() {
+  try {
+    return (
+      sessionStorage.getItem("pansVoterToken") ||
+      localStorage.getItem("pansVoterToken") ||
+      ""
+    );
+  } catch {
+    return sessionStorage.getItem("pansVoterToken") || "";
+  }
+}
+
 function persistAdminToken(token) {
   try {
     if (token) {
@@ -41,7 +53,7 @@ async function request(path, options = {}) {
     import.meta.env.VITE_API_BASE_URL ||
     "https://pans-unizik-election-api.onrender.com" ||
     "";
-  const voterToken = sessionStorage.getItem("pansVoterToken");
+  const voterToken = readVoterToken();
   const adminToken = readStoredToken("pansAdminToken");
   const isAdminRoute = path.startsWith("/api/admin");
 

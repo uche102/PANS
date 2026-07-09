@@ -67,6 +67,22 @@ function readPendingOtp() {
   return null;
 }
 
+function persistVoterSession(voter, token) {
+  const voterPayload = JSON.stringify(voter);
+  try {
+    localStorage.setItem("pansVoter", voterPayload);
+    if (token) localStorage.setItem("pansVoterToken", token);
+  } catch {
+    // sessionStorage fallback below keeps the login flow usable.
+  }
+  try {
+    sessionStorage.setItem("pansVoter", voterPayload);
+    if (token) sessionStorage.setItem("pansVoterToken", token);
+  } catch {
+    // Browser storage can be restricted; the API cookie is still set.
+  }
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [step, setStep] = useState("reg");
@@ -141,10 +157,7 @@ export default function Login() {
     try {
       setLoading(true);
       const data = await api.verifyOtp(regNo.trim().toUpperCase(), otp);
-      sessionStorage.setItem("pansVoter", JSON.stringify(data.voter));
-      if (data.token) {
-        sessionStorage.setItem("pansVoterToken", data.token);
-      }
+      persistVoterSession(data.voter, data.token);
       clearPendingOtp();
       navigate("/ballot");
     } catch (err) {

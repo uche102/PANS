@@ -41,6 +41,17 @@ function getHorMaxSelections(post, voter) {
   return Infinity;
 }
 
+function readStoredSession(key) {
+  return sessionStorage.getItem(key) || localStorage.getItem(key);
+}
+
+function clearVoterSession() {
+  sessionStorage.removeItem("pansVoter");
+  sessionStorage.removeItem("pansVoterToken");
+  localStorage.removeItem("pansVoter");
+  localStorage.removeItem("pansVoterToken");
+}
+
 export default function Ballot() {
   const navigate = useNavigate();
   const [voter, setVoter] = useState(null);
@@ -53,8 +64,8 @@ export default function Ballot() {
 
   useEffect(() => {
     async function load() {
-      const storedVoter = sessionStorage.getItem("pansVoter");
-      const hasToken = sessionStorage.getItem("pansVoterToken");
+      const storedVoter = readStoredSession("pansVoter");
+      const hasToken = readStoredSession("pansVoterToken");
 
       if (!storedVoter || !hasToken) {
         navigate("/", { replace: true });
@@ -81,8 +92,7 @@ export default function Ballot() {
           throw election.reason;
         }
       } catch {
-        sessionStorage.removeItem("pansVoter");
-        sessionStorage.removeItem("pansVoterToken");
+        clearVoterSession();
         navigate("/", { replace: true });
       } finally {
         setLoading(false);
@@ -177,8 +187,7 @@ export default function Ballot() {
   }
 
   function logout() {
-    sessionStorage.removeItem("pansVoter");
-    sessionStorage.removeItem("pansVoterToken");
+    clearVoterSession();
     navigate("/");
   }
 

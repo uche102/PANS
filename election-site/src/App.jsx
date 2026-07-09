@@ -7,7 +7,8 @@ const Success = lazy(() => import("./pages/Success.jsx"));
 const AdminGate = lazy(() => import("./pages/AdminGate.jsx"));
 
 const ProtectedBallot = ({ children }) => {
-  const voterSession = sessionStorage.getItem("pansVoter");
+  const voterSession =
+    sessionStorage.getItem("pansVoter") || localStorage.getItem("pansVoter");
   return voterSession ? children : <Navigate to="/" replace />;
 };
 
